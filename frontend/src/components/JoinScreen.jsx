@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, MessageSquare } from 'lucide-react';
 import { auth } from '../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
@@ -41,13 +41,16 @@ export default function JoinScreen() {
   };
 
   return (
-    <div className="w-full max-w-[400px] p-8 clean-card relative overflow-hidden">
-      <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          {isLogin ? 'Welcome Back' : 'Create Account'}
+    <div className="w-full max-w-md p-10 bg-white border border-gray-200 shadow-sm relative overflow-hidden">
+      <div className="flex flex-col items-center text-center mb-10">
+        <div className="p-3 bg-indigo-600 rounded-lg text-white mb-4">
+          <MessageSquare className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight mb-2">
+          {isLogin ? 'Sign in to CorpChat' : 'Create an Account'}
         </h1>
         <p className="text-sm text-gray-500 font-medium">
-          {isLogin ? 'Sign in to access your chats.' : 'Sign up to start chatting.'}
+          {isLogin ? 'Enter your enterprise credentials' : 'Register your corporate email'}
         </p>
       </div>
 
@@ -100,14 +103,14 @@ export default function JoinScreen() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full mt-6 flex justify-center items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm"
+          className="w-full mt-8 flex justify-center items-center gap-2 px-4 py-3 bg-indigo-600 text-white font-semibold rounded hover:bg-indigo-700 transition-colors disabled:opacity-50"
         >
           {loading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
           ) : isLogin ? (
-            <><LogIn className="w-4 h-4" /> Sign In</>
+            <><LogIn className="w-4 h-4" /> Continue</>
           ) : (
-            <><UserPlus className="w-4 h-4" /> Sign Up</>
+            <><UserPlus className="w-4 h-4" /> Register</>
           )}
         </button>
       </form>

@@ -30,15 +30,11 @@ export default function MessageRow({ message, isMe, showSender, currentUserId, r
         )}
       </div>
 
-      <div className={clsx(
-        "flex-1 max-w-3xl",
-        isMe && "bg-indigo-50 rounded-2xl rounded-bl-sm px-4 py-2 -ml-3 shadow-sm border border-indigo-100",
-        !isMe && "py-0.5"
-      )}>
+      <div className="flex-1 max-w-4xl py-0.5 group">
         {showSender && (
-          <div className="flex items-baseline gap-2 mb-1">
-            <span className="text-sm font-semibold text-gray-900">{senderName}</span>
-            <span className="text-xs text-gray-400">{formattedTime}</span>
+          <div className="flex items-baseline gap-2 mb-0.5">
+            <span className="text-[15px] font-bold text-gray-900">{senderName}</span>
+            <span className="text-xs text-gray-500 font-medium">{formattedTime}</span>
           </div>
         )}
         
@@ -54,15 +50,15 @@ export default function MessageRow({ message, isMe, showSender, currentUserId, r
           </div>
         )}
 
-        <div className="flex items-end justify-between gap-4">
+        <div className="flex items-end justify-between gap-4 mt-1">
           <div className="text-[15px] text-gray-800 leading-relaxed whitespace-pre-wrap break-words">
             {message.text}
           </div>
           
           {isMe && (
-            <div className="flex-shrink-0 mb-0.5 ml-2" title={readStatus === 'read' ? 'Read' : 'Delivered'}>
+            <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-2" title={readStatus === 'read' ? 'Read' : 'Delivered'}>
               {readStatus === 'read' ? (
-                <CheckCheck className="w-4 h-4 text-indigo-500" />
+                <CheckCheck className="w-4 h-4 text-indigo-600" />
               ) : (
                 <Check className="w-4 h-4 text-gray-400" />
               )}

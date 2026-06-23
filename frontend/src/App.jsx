@@ -184,28 +184,29 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center overflow-hidden">
-      
-      <div className="relative z-10 w-full flex items-center justify-center px-4">
-        {!user ? (
+    <div className="h-screen w-screen overflow-hidden bg-white flex flex-col font-sans text-gray-900">
+      {!user ? (
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
           <JoinScreen />
-        ) : !roomId ? (
+        </div>
+      ) : !roomId ? (
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
           <RoomSelection user={user} onJoin={handleJoin} onLogout={handleLogout} isConnected={isConnected} />
-        ) : (
-          <ChatRoom
-            roomId={roomId}
-            user={user}
-            messages={messages}
-            typingUsers={Array.from(typingUsers)}
-            roomUsers={roomUsers}
-            onSendMessage={handleSendMessage}
-            onTyping={handleTyping}
-            onMarkAsRead={handleMarkAsRead}
-            isConnected={isConnected}
-            onLeave={handleLeave}
-          />
-        )}
-      </div>
+        </div>
+      ) : (
+        <ChatRoom
+          roomId={roomId}
+          user={user}
+          messages={messages}
+          typingUsers={Array.from(typingUsers)}
+          roomUsers={roomUsers}
+          onSendMessage={handleSendMessage}
+          onTyping={handleTyping}
+          onMarkAsRead={handleMarkAsRead}
+          isConnected={isConnected}
+          onLeave={handleLeave}
+        />
+      )}
     </div>
   );
 }
