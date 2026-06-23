@@ -8,15 +8,17 @@ const mongoose = require('mongoose');
 const { createClient } = require('redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const admin = require('firebase-admin');
+const { getAuth } = require('firebase-admin/auth');
 
 // Initialize Firebase Admin
+let firebaseApp;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    firebaseApp = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   } else {
     // Hardcoded projectId to match frontend config so token verification doesn't fail on audience mismatch
-    admin.initializeApp({ projectId: 'realtime-chat-86476' });
+    firebaseApp = admin.initializeApp({ projectId: 'realtime-chat-86476' });
   }
   console.log('Firebase Admin initialized');
 } catch (err) {
@@ -88,7 +90,7 @@ io.use(async (socket, next) => {
   }
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    const decodedToken = await getAuth(firebaseApp).verifyIdToken(token);
     socket.user = { 
       userId: decodedToken.uid, 
       email: decodedToken.email, 
