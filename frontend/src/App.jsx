@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
-import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText } from 'lucide-react';
+import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText, Phone } from 'lucide-react';
 import JoinScreen from './components/JoinScreen';
 import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
