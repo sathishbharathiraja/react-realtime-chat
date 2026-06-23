@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { LogIn, UserPlus } from 'lucide-react';
+import { auth } from '../firebase';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
-const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
-
-export default function JoinScreen({ onAuth }) {
+export default function JoinScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,28 +16,12 @@ export default function JoinScreen({ onAuth }) {
     setError('');
     setLoading(true);
 
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-    const payload = isLogin 
-      ? { email, password }
-      : { email, password, displayName };
-
     try {
-      const res = await fetch(`${backendUrl}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-
       if (isLogin) {
-        onAuth(data.token, data.user);
+        await signInWithEmailAndPassword(auth, email, password);
       } else {
-        setIsLogin(true);
-        setError('Registration successful! Please log in.');
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        await updateProfile(userCredential.user, { displayName });
       }
     } catch (err) {
       setError(err.message);
@@ -72,7 +56,7 @@ export default function JoinScreen({ onAuth }) {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
+              required={!isLogin}
             />
           </div>
         )}
@@ -96,6 +80,7 @@ export default function JoinScreen({ onAuth }) {
             onChange={(e) => setPassword(e.target.value)}
             className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
+            minLength={6}
           />
         </div>
 

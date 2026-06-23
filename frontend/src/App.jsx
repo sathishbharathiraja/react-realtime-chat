@@ -3,30 +3,46 @@ import { io } from 'socket.io-client';
 import JoinScreen from './components/JoinScreen';
 import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
+import { auth } from './firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 function App() {
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [user, setUser] = useState(null); // { token, id, displayName, email }
+  const [user, setUser] = useState(null); // { id, displayName, email }
+  const [token, setToken] = useState(null);
   const [roomId, setRoomId] = useState('');
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [roomUsers, setRoomUsers] = useState([]);
+  const [loadingAuth, setLoadingAuth] = useState(true);
 
-  // Check for existing session
+  // Listen to Firebase Auth state
   useEffect(() => {
-    const token = localStorage.getItem('chat_token');
-    const storedUser = localStorage.getItem('chat_user');
-    if (token && storedUser) {
-      setUser({ token, ...JSON.parse(storedUser) });
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        const idToken = await currentUser.getIdToken();
+        setUser({
+          id: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName || currentUser.email.split('@')[0]
+        });
+        setToken(idToken);
+      } else {
+        setUser(null);
+        setToken(null);
+      }
+      setLoadingAuth(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Initialize socket when user is available
+  // Initialize socket when Firebase token is available
   useEffect(() => {
-    if (!user?.token) {
+    if (!token) {
       if (socket) {
         socket.disconnect();
         setSocket(null);
@@ -35,7 +51,7 @@ function App() {
     }
 
     const newSocket = io(backendUrl, {
-      auth: { token: user.token }
+      auth: { token }
     });
 
     setSocket(newSocket);
@@ -43,14 +59,13 @@ function App() {
     return () => {
       newSocket.disconnect();
     };
-  }, [user?.token]);
+  }, [token]);
 
   useEffect(() => {
     if (!socket) return;
 
     function onConnect() {
       setIsConnected(true);
-      // Rejoin room if we reconnect
       if (roomId) {
         socket.emit('joinRoom', { roomId });
       }
@@ -66,7 +81,6 @@ function App() {
 
     function onNewMessage(newMessage) {
       setMessages((prev) => {
-        // Prevent adding duplicate messages in case of edge cases
         if (prev.some(m => m.id === newMessage.id)) return prev;
         return [...prev, newMessage];
       });
@@ -113,16 +127,8 @@ function App() {
     };
   }, [socket, roomId]);
 
-  const handleAuth = (token, userData) => {
-    localStorage.setItem('chat_token', token);
-    localStorage.setItem('chat_user', JSON.stringify(userData));
-    setUser({ token, ...userData });
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('chat_token');
-    localStorage.removeItem('chat_user');
-    setUser(null);
+  const handleLogout = async () => {
+    await signOut(auth);
     setRoomId('');
   };
 
@@ -145,7 +151,7 @@ function App() {
     if ((!text.trim() && !mediaUrl) || !roomId || !socket) return;
     
     socket.emit('sendMessage', {
-      id: crypto.randomUUID(), // Client-generated UUID for idempotency
+      id: crypto.randomUUID(),
       roomId,
       text: text.trim(),
       mediaUrl,
@@ -167,10 +173,14 @@ function App() {
     socket.emit('markAsRead', { messageId });
   };
 
+  if (loadingAuth) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
       {!user ? (
-        <JoinScreen onAuth={handleAuth} />
+        <JoinScreen />
       ) : !roomId ? (
         <RoomSelection user={user} onJoin={handleJoin} onLogout={handleLogout} isConnected={isConnected} />
       ) : (
