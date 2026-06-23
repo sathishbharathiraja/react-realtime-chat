@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText } from 'lucide-react';
 import JoinScreen from './components/JoinScreen';
 import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
@@ -194,18 +195,132 @@ function App() {
           <RoomSelection user={user} onJoin={handleJoin} onLogout={handleLogout} isConnected={isConnected} />
         </div>
       ) : (
-        <ChatRoom
-          roomId={roomId}
-          user={user}
-          messages={messages}
-          typingUsers={Array.from(typingUsers)}
-          roomUsers={roomUsers}
-          onSendMessage={handleSendMessage}
-          onTyping={handleTyping}
-          onMarkAsRead={handleMarkAsRead}
-          isConnected={isConnected}
-          onLeave={handleLeave}
-        />
+        <div className="flex flex-col h-full w-full">
+          {/* Top Navbar (Teams Purple) */}
+          <div className="h-12 w-full bg-[#464eb8] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
+            <div className="text-white font-bold text-[15px] tracking-wide flex items-center gap-2 w-64">
+              CorpChat Teams
+            </div>
+            
+            <div className="flex-1 max-w-2xl flex items-center">
+              <div className="w-full bg-white/20 hover:bg-white/30 transition-colors rounded-md h-8 flex items-center px-3 text-white/90">
+                <Search className="w-4 h-4 mr-2 opacity-70" />
+                <input type="text" placeholder="Search messages, people, or files" className="bg-transparent border-none outline-none text-sm w-full placeholder-white/70" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-4 w-64">
+              <MoreHorizontal className="w-5 h-5 text-white/90 cursor-pointer" />
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold text-white border border-white/30 cursor-pointer">
+                {user.displayName?.charAt(0).toUpperCase()}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-1 overflow-hidden bg-[#f5f5f5]">
+            {/* Primary App Bar */}
+            <div className="w-[68px] bg-[#ebebeb] flex flex-col items-center py-4 gap-6 shrink-0 border-r border-gray-200">
+              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
+                <Bell className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-medium">Activity</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer text-[#464eb8] relative">
+                <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>
+                <MessageSquare className="w-6 h-6 fill-[#464eb8]" />
+                <span className="text-[10px] font-bold">Chat</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
+                <Users className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-medium">Teams</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
+                <Calendar className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-medium">Calendar</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
+                <Phone className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-medium">Calls</span>
+              </div>
+              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
+                <FileText className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                <span className="text-[10px] font-medium">Files</span>
+              </div>
+            </div>
+
+            {/* Secondary Sidebar (Chat List) */}
+            <div className="w-[320px] bg-white flex flex-col shrink-0 border-r border-gray-200 z-10">
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900 tracking-tight">Chat</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-3">
+                  <div className="flex items-center justify-between px-2 mb-2">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent</span>
+                  </div>
+                  
+                  {/* Active Chat Item */}
+                  <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-100 cursor-pointer">
+                    <div className="relative">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                        {roomId.charAt(0).toUpperCase()}
+                      </div>
+                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-0.5">
+                        <span className="text-sm font-semibold text-gray-900 truncate">Room: {roomId}</span>
+                        <span className="text-[11px] text-gray-500">Now</span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">
+                        {messages.length > 0 ? messages[messages.length - 1].text || 'Attachment' : 'Start chatting...'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Placeholder Inactive Chat */}
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mt-1 opacity-60">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-sm">D</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-0.5">
+                        <span className="text-sm font-semibold text-gray-900 truncate">Design Sync</span>
+                        <span className="text-[11px] text-gray-400">Yesterday</span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">Let's review the new mockups.</p>
+                    </div>
+                  </div>
+                  
+                  {/* Placeholder Inactive Chat */}
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mt-1 opacity-60">
+                    <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm">E</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-0.5">
+                        <span className="text-sm font-semibold text-gray-900 truncate">Engineering Team</span>
+                        <span className="text-[11px] text-gray-400">Tuesday</span>
+                      </div>
+                      <p className="text-xs text-gray-500 truncate">Deployment successful!</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Chat Area */}
+            <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0">
+              <ChatRoom
+                roomId={roomId}
+                user={user}
+                messages={messages}
+                typingUsers={Array.from(typingUsers)}
+                roomUsers={roomUsers}
+                onSendMessage={handleSendMessage}
+                onTyping={handleTyping}
+                onMarkAsRead={handleMarkAsRead}
+                isConnected={isConnected}
+                onLeave={handleLeave}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

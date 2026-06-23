@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, LogOut, Copy, Check, Paperclip, MessageSquare } from 'lucide-react';
+import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle } from 'lucide-react';
 import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -102,47 +102,46 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
     <div className="flex flex-col h-full w-full bg-white relative">
       
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 z-10 shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-indigo-700">
-            <div className="p-1.5 bg-indigo-600 rounded-md text-white">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <span className="font-bold text-lg tracking-tight">CorpChat</span>
-          </div>
-          <div className="h-6 w-px bg-gray-200"></div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-gray-500 uppercase">Room:</span>
-            <span className="font-mono text-sm font-bold text-gray-900 tracking-wider">{roomId}</span>
-          </div>
-          <button 
-            onClick={handleCopyCode}
-            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
-            title="Copy Access Code"
-          >
-            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-          </button>
-        </div>
-        
+      <div className="flex items-center justify-between px-6 py-2 bg-white border-b border-gray-200 z-10 shrink-0 h-14">
         <div className="flex items-center gap-6">
-          <div className="flex flex-col items-end justify-center">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
-              <span className="relative flex h-2 w-2">
-                {isConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-              </span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+              {roomId.charAt(0).toUpperCase()}
             </div>
-            <div className="text-xs text-gray-400 truncate max-w-xs font-medium">
-              {roomUsers.length > 0 ? roomUsers.map(u => typeof u === 'object' ? u.displayName : u).join(', ') : 'Waiting for others...'}
+            <div>
+              <span className="font-bold text-[15px] text-gray-900 tracking-tight">Room: {roomId}</span>
+              <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium">
+                <span>Chat</span>
+                <span>•</span>
+                <span>{roomUsers.length} Members</span>
+              </div>
             </div>
           </div>
           
-          <button onClick={onLeave} className="flex items-center justify-center p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Leave Room">
-            <LogOut className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-4 text-sm font-semibold text-gray-500 h-full mt-2">
+            <div className="border-b-2 border-[#464eb8] text-[#464eb8] pb-3 px-1 cursor-pointer">Chat</div>
+            <div className="pb-3 px-1 hover:text-gray-700 cursor-pointer">Files</div>
+            <div className="pb-3 px-1 hover:text-gray-700 cursor-pointer">+</div>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex -space-x-2 mr-2">
+            {roomUsers.slice(0,3).map((u, i) => (
+              <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600">
+                {(typeof u === 'object' ? u.displayName : u).charAt(0).toUpperCase()}
+              </div>
+            ))}
+          </div>
+          
+          <div className="flex items-center gap-3 text-gray-500">
+            <Video className="w-5 h-5 cursor-pointer hover:text-gray-700" />
+            <Phone className="w-4 h-4 cursor-pointer hover:text-gray-700" />
+            <div className="w-px h-5 bg-gray-200 mx-1"></div>
+            <button onClick={onLeave} className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors" title="Leave">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -189,45 +188,50 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
         );
       })()}
 
-      {/* Input Area */}
-      <div className="p-4 bg-white border-t border-gray-200 shrink-0">
-        <form onSubmit={handleSubmit} className="flex items-center gap-3 max-w-6xl mx-auto w-full">
+      {/* Input Area (Teams Style Composer) */}
+      <div className="p-4 bg-white shrink-0">
+        <form onSubmit={handleSubmit} className="flex flex-col max-w-6xl mx-auto w-full border border-gray-300 rounded-md shadow-sm focus-within:border-[#464eb8] transition-colors bg-white">
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
             className="hidden"
-            accept="image/*,video/*"
+            accept="image/*,video/*,application/pdf"
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!isConnected || uploading}
-            className="flex-shrink-0 p-3 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-xl transition-colors disabled:opacity-50"
-            title="Attach file"
-          >
-            <Paperclip className="w-5 h-5" />
-          </button>
-          
-          <input
-            type="text"
+          <textarea
             value={inputText}
             onChange={handleInputChange}
-            placeholder="Type a message..."
+            placeholder="Type a new message"
             disabled={!isConnected || uploading}
-            className="flex-1 px-4 py-3 bg-white border border-gray-300 rounded-md text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all text-[15px]"
+            rows={1}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+            className="flex-1 px-4 py-3 bg-transparent border-none text-gray-900 placeholder-gray-500 focus:ring-0 outline-none resize-none text-[15px] min-h-[44px]"
           />
-          <button
-            type="submit"
-            disabled={!isConnected || (!inputText.trim() && !uploading)}
-            className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center justify-center min-w-[80px]"
-          >
-            {uploading ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
-          </button>
+          
+          <div className="flex items-center justify-between px-2 py-2 border-t border-gray-100 bg-gray-50/50 rounded-b-md">
+            <div className="flex items-center gap-1 text-gray-500">
+              <button type="button" className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Format"><Type className="w-4 h-4" /></button>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Attach file"><Paperclip className="w-4 h-4" /></button>
+              <button type="button" className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Emoji"><Smile className="w-4 h-4" /></button>
+            </div>
+            <button
+              type="submit"
+              disabled={!isConnected || (!inputText.trim() && !uploading)}
+              className="flex-shrink-0 p-1.5 bg-[#464eb8] text-white rounded hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:bg-gray-300 flex items-center justify-center"
+              title="Send (Enter)"
+            >
+              {uploading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <Send className="w-4 h-4 ml-0.5" />
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
