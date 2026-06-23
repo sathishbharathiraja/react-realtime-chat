@@ -9,14 +9,14 @@ const { createClient } = require('redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const admin = require('firebase-admin');
 
-// Initialize Firebase Admin (Fallback to demo project if credentials missing)
+// Initialize Firebase Admin
 try {
-  // If FIREBASE_SERVICE_ACCOUNT is provided as a JSON string in env
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   } else {
-    admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'demo-project' });
+    // Hardcoded projectId to match frontend config so token verification doesn't fail on audience mismatch
+    admin.initializeApp({ projectId: 'realtime-chat-86476' });
   }
   console.log('Firebase Admin initialized');
 } catch (err) {
