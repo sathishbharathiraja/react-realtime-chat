@@ -10,6 +10,22 @@ const { createClient } = require('redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const admin = require('firebase-admin');
 const { getAuth } = require('firebase-admin/auth');
+const multer = require('multer');
+
+// Configure Multer for local file uploads
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${crypto.randomUUID()}${ext}`);
+  }
+});
+const upload = multer({ storage });
 
 // Initialize Firebase Admin
 let firebaseApp;
@@ -34,6 +50,16 @@ app.use(express.json());
 
 // Serve static files from the frontend build
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// File Upload Endpoint
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+  res.json({ url: fileUrl });
+});
 
 const server = http.createServer(app);
 

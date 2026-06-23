@@ -1,7 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Send, LogOut, Copy, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase';
 import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -70,19 +68,20 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
 
     setUploading(true);
     try {
-      // Create a unique file name
-      const ext = file.name.split('.').pop();
-      const uniqueFilename = `${crypto.randomUUID()}.${ext}`;
-      const storageRef = ref(storage, `uploads/${roomId}/${uniqueFilename}`);
+      const formData = new FormData();
+      formData.append('file', file);
 
-      // Upload file directly to Firebase Storage
-      await uploadBytes(storageRef, file);
+      const response = await fetch(`${backendUrl}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
 
-      // Get the public download URL
-      const downloadUrl = await getDownloadURL(storageRef);
+      if (!response.ok) throw new Error('Upload failed');
+      
+      const data = await response.json();
 
-      // Send message with Firebase Storage URL
-      onSendMessage(inputText, downloadUrl);
+      // Send message with local upload URL
+      onSendMessage(inputText, data.url);
       setInputText('');
     } catch (err) {
       console.error('File upload failed:', err);
