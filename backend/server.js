@@ -51,6 +51,9 @@ app.use(express.json());
 // Serve static files from the frontend build
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
+// Trust proxy (Render, Heroku, etc.) to ensure req.protocol is correctly 'https' instead of 'http'
+app.set('trust proxy', true);
+
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
