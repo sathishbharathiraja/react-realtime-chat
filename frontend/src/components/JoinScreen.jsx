@@ -17,14 +17,24 @@ export default function JoinScreen() {
     setLoading(true);
 
     try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
+      if (!isLogin) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(userCredential.user, { displayName });
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
       }
     } catch (err) {
-      setError(err.message);
+      console.error(err);
+      // Map ugly Firebase errors to user-friendly messages
+      let friendlyMessage = 'An unexpected error occurred. Please try again.';
+      if (err.code === 'auth/invalid-credential') friendlyMessage = 'Incorrect email or password.';
+      else if (err.code === 'auth/email-already-in-use') friendlyMessage = 'This email is already registered. Please sign in instead.';
+      else if (err.code === 'auth/weak-password') friendlyMessage = 'Password should be at least 6 characters long.';
+      else if (err.code === 'auth/invalid-email') friendlyMessage = 'Please enter a valid email address.';
+      else if (err.code === 'auth/user-not-found') friendlyMessage = 'No account found with this email.';
+      else if (err.code === 'auth/wrong-password') friendlyMessage = 'Incorrect password. Please try again.';
+      
+      setError(friendlyMessage);
     } finally {
       setLoading(false);
     }
