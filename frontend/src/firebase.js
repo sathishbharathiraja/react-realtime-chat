@@ -1,8 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
-// Replace these with your actual Firebase config values
 const firebaseConfig = {
   apiKey: "AIzaSyDssdpQddpiZZpXgbu4-E9WZAlcHeW3kmI",
   authDomain: "realtime-chat-86476.firebaseapp.com",
@@ -16,3 +16,4 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const storage = getStorage(app);

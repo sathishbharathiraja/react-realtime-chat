@@ -25,15 +25,11 @@ try {
   console.error('Firebase Admin init error:', err);
 }
 
-const uploadRoutes = require('./routes/upload');
 const Message = require('./models/Message');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// API Routes
-app.use('/api/upload', uploadRoutes);
 
 // Serve static files from the frontend build
 app.use(express.static(path.join(__dirname, '../frontend/dist')));

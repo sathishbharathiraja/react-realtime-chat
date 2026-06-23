@@ -1,5 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Send, LogOut, Copy, Check, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from '../firebase';
 import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -68,20 +70,19 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
 
     setUploading(true);
     try {
-      // 1. Get pre-signed URL from our backend
-      const res = await fetch(`${backendUrl}/api/upload/presignedUrl?filename=${encodeURIComponent(file.name)}&filetype=${encodeURIComponent(file.type)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      // Create a unique file name
+      const ext = file.name.split('.').pop();
+      const uniqueFilename = `${crypto.randomUUID()}.${ext}`;
+      const storageRef = ref(storage, `uploads/${roomId}/${uniqueFilename}`);
 
-      // 2. Upload file directly to S3
-      await fetch(data.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type }
-      });
+      // Upload file directly to Firebase Storage
+      await uploadBytes(storageRef, file);
 
-      // 3. Send message with S3 URL
-      onSendMessage(inputText, data.publicUrl);
+      // Get the public download URL
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      // Send message with Firebase Storage URL
+      onSendMessage(inputText, downloadUrl);
       setInputText('');
     } catch (err) {
       console.error('File upload failed:', err);
