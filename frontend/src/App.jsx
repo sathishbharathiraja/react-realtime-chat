@@ -108,6 +108,10 @@ function App() {
       });
     }
 
+    function onRoomUsers(users) {
+      setRoomUsers(users);
+    }
+
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
     socket.on('history', onHistory);
@@ -115,6 +119,7 @@ function App() {
     socket.on('messageRead', onMessageRead);
     socket.on('userTyping', onUserTyping);
     socket.on('userStopTyping', onUserStopTyping);
+    socket.on('roomUsers', onRoomUsers);
 
     return () => {
       socket.off('connect', onConnect);
@@ -124,6 +129,7 @@ function App() {
       socket.off('messageRead', onMessageRead);
       socket.off('userTyping', onUserTyping);
       socket.off('userStopTyping', onUserStopTyping);
+      socket.off('roomUsers', onRoomUsers);
     };
   }, [socket, roomId]);
 
@@ -178,8 +184,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen animated-gradient-bg flex flex-col items-center justify-center overflow-hidden">
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-screen pointer-events-none"></div>
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center overflow-hidden">
       
       <div className="relative z-10 w-full flex items-center justify-center px-4">
         {!user ? (

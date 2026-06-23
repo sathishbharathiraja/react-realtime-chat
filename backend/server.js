@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const mongoose = require('mongoose');
 const { createClient } = require('redis');
 const { createAdapter } = require('@socket.io/redis-adapter');
@@ -49,8 +50,24 @@ const io = new Server(server, {
 let isMongoConnected = false;
 let isRedisConnected = false;
 
-// Fallback in-memory store if MongoDB is not provided
-const fallbackMessages = [];
+// Fallback in-memory store with JSON file backup if MongoDB is not provided
+const HISTORY_FILE = path.join(__dirname, 'history.json');
+let fallbackMessages = [];
+
+try {
+  if (fs.existsSync(HISTORY_FILE)) {
+    const data = fs.readFileSync(HISTORY_FILE, 'utf8');
+    fallbackMessages = JSON.parse(data);
+  }
+} catch (err) {
+  console.error('Error loading history.json:', err);
+}
+
+const saveHistoryBackup = () => {
+  fs.writeFile(HISTORY_FILE, JSON.stringify(fallbackMessages), (err) => {
+    if (err) console.error('Failed to write history backup:', err);
+  });
+};
 
 // Redis setup (Optional)
 if (process.env.REDIS_URL) {
@@ -101,6 +118,9 @@ io.use(async (socket, next) => {
 
 const typingTimeouts = new Map();
 
+// In-memory store for active users per room: { [roomId]: { [userId]: { socketId, displayName } } }
+const activeRooms = {};
+
 io.on('connection', async (socket) => {
   console.log(`User connected: ${socket.id}, UserID: ${socket.user.userId}`);
 
@@ -124,6 +144,14 @@ io.on('connection', async (socket) => {
     } catch (err) {
       console.error('Error fetching history', err);
     }
+
+    // Add user to activeRooms
+    if (!activeRooms[roomId]) activeRooms[roomId] = {};
+    activeRooms[roomId][socket.user.userId] = {
+      socketId: socket.id,
+      displayName: socket.user.displayName
+    };
+    io.to(roomId).emit('roomUsers', Object.values(activeRooms[roomId]));
   });
 
   socket.on('sendMessage', async (data) => {
@@ -150,11 +178,12 @@ io.on('connection', async (socket) => {
         await message.save();
         io.to(roomId).emit('newMessage', message);
       } else {
-        // Fallback in-memory logic
+        // Fallback file-backed logic
         const existing = fallbackMessages.find(m => m.id === id);
         if (!existing) {
           fallbackMessages.push(msgPayload);
           if (fallbackMessages.length > 5000) fallbackMessages.shift();
+          saveHistoryBackup();
           io.to(roomId).emit('newMessage', msgPayload);
         }
       }
@@ -176,6 +205,7 @@ io.on('connection', async (socket) => {
         const message = fallbackMessages.find(m => m.id === messageId);
         if (message && !message.readBy.includes(socket.user.userId)) {
           message.readBy.push(socket.user.userId);
+          saveHistoryBackup();
           io.to(message.roomId).emit('messageRead', { messageId, readBy: message.readBy });
         }
       }
@@ -211,14 +241,28 @@ io.on('connection', async (socket) => {
 
   socket.on('leaveRoom', ({ roomId }) => {
     socket.leave(roomId);
+    if (activeRooms[roomId] && activeRooms[roomId][socket.user.userId]) {
+      delete activeRooms[roomId][socket.user.userId];
+      io.to(roomId).emit('roomUsers', Object.values(activeRooms[roomId]));
+    }
   });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
+    
+    // Clear typing timeouts
     for (const [key, timeout] of typingTimeouts.entries()) {
       if (key.endsWith(`-${socket.user.userId}`)) {
         clearTimeout(timeout);
         typingTimeouts.delete(key);
+      }
+    }
+
+    // Remove user from all active rooms they were in
+    for (const roomId in activeRooms) {
+      if (activeRooms[roomId][socket.user.userId]) {
+        delete activeRooms[roomId][socket.user.userId];
+        io.to(roomId).emit('roomUsers', Object.values(activeRooms[roomId]));
       }
     }
   });

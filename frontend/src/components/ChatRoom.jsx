@@ -100,56 +100,54 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
   };
 
   return (
-    <div className="flex flex-col w-full max-w-5xl h-[90vh] glass-panel-heavy rounded-2xl overflow-hidden relative border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+    <div className="flex flex-col w-full max-w-5xl h-[90vh] bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-xl relative">
       
       {/* Header */}
-      <div className="grid grid-cols-3 items-center px-6 py-4 bg-black/40 backdrop-blur-md border-b border-white/5 z-10">
-        <div className="flex items-center gap-3 justify-start">
-          <div className="bg-cyan-500/20 text-cyan-400 px-3 py-1.5 rounded-lg border border-cyan-500/20 shadow-[0_0_10px_rgba(6,182,212,0.15)] flex items-center gap-2">
-            <span className="text-xs uppercase tracking-widest font-semibold opacity-70">Room</span>
-            <span className="font-mono text-sm tracking-wider">{roomId}</span>
+      <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 z-10 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-2">
+            <span className="text-xs font-semibold text-indigo-500 uppercase">Room</span>
+            <span className="font-mono text-sm font-bold tracking-wider">{roomId}</span>
           </div>
           <button 
             onClick={handleCopyCode}
-            className="p-1.5 text-gray-500 hover:text-cyan-400 bg-white/5 hover:bg-cyan-500/10 rounded-md transition-all duration-300"
+            className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
             title="Copy Access Code"
           >
-            {copied ? <Check className="w-4 h-4 text-cyan-400" /> : <Copy className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
           </button>
         </div>
         
-        <div className="flex flex-col items-center justify-center text-center">
+        <div className="flex flex-col items-center justify-center">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="relative flex h-2 w-2">
-              {isConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.8)]' : 'bg-red-500'}`}></span>
+              {isConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>}
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
             </span>
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-              {isConnected ? 'Secure Link Active' : 'Offline'}
+            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+              {isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
-          <div className="text-[11px] text-gray-500 truncate max-w-sm font-medium tracking-wide">
-            {roomUsers.length > 0 ? roomUsers.map(u => typeof u === 'object' ? u.displayName : u).join(', ') : 'Awaiting connections...'}
+          <div className="text-xs text-gray-500 truncate max-w-sm font-medium">
+            {roomUsers.length > 0 ? roomUsers.map(u => typeof u === 'object' ? u.displayName : u).join(', ') : 'Waiting for others...'}
           </div>
         </div>
         
-        <div className="flex justify-end">
-          <button onClick={onLeave} className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest font-bold text-gray-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-lg transition-all duration-300">
-            <LogOut className="w-3.5 h-3.5" />
-            Disconnect
-          </button>
-        </div>
+        <button onClick={onLeave} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+          <LogOut className="w-4 h-4" />
+          Leave Room
+        </button>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto py-6 px-4 bg-transparent custom-scrollbar">
+      <div className="flex-1 overflow-y-auto py-6 px-4 bg-gray-50 custom-scrollbar">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-500">
-            <div className="w-16 h-16 mb-4 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-              <span className="text-2xl opacity-50">⚡</span>
+          <div className="h-full flex flex-col items-center justify-center text-gray-400">
+            <div className="w-16 h-16 mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+              <span className="text-2xl">👋</span>
             </div>
-            <p className="text-sm font-medium tracking-wide">Secure channel initialized.</p>
-            <p className="text-xs opacity-60 mt-1">Share code {roomId} to begin transmission.</p>
+            <p className="text-sm font-medium text-gray-600">Welcome to the chat!</p>
+            <p className="text-xs mt-1">Share the code {roomId} to invite others.</p>
           </div>
         ) : (
           messages.map((msg, index) => {
@@ -171,12 +169,13 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
       {(() => {
         const othersTyping = typingUsers.filter(u => u !== user.displayName);
         if (othersTyping.length === 0) return null;
-        const typingText = othersTyping.length === 1 ? `${othersTyping[0]} is transmitting` : othersTyping.length === 2 ? `${othersTyping[0]} and ${othersTyping[1]} are transmitting` : `${othersTyping[0]} and ${othersTyping.length - 1} others are transmitting`;
+        const typingText = othersTyping.length === 1 ? `${othersTyping[0]} is typing...` : othersTyping.length === 2 ? `${othersTyping[0]} and ${othersTyping[1]} are typing...` : `${othersTyping[0]} and ${othersTyping.length - 1} others are typing...`;
         return (
-          <div className="absolute bottom-[88px] left-8 px-4 py-1.5 bg-black/60 backdrop-blur-md border border-white/10 rounded-full text-[10px] uppercase tracking-widest text-cyan-400 flex items-center gap-2 z-20 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+          <div className="absolute bottom-[88px] left-8 px-4 py-2 bg-white border border-gray-200 rounded-full text-xs text-gray-500 shadow-sm flex items-center gap-2 z-20 animate-fade-in">
+            <span className="flex gap-0.5">
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
             </span>
             <span>{typingText}</span>
           </div>
@@ -184,7 +183,7 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
       })()}
 
       {/* Input Area */}
-      <div className="p-5 bg-black/40 backdrop-blur-xl border-t border-white/5 relative z-10">
+      <div className="p-4 bg-white border-t border-gray-200 z-10">
         <form onSubmit={handleSubmit} className="flex items-center gap-3 max-w-4xl mx-auto">
           <input
             type="file"
@@ -197,8 +196,8 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={!isConnected || uploading}
-            className="flex-shrink-0 p-3.5 text-gray-400 bg-white/5 hover:bg-white/10 hover:text-cyan-400 border border-white/10 rounded-xl transition-all duration-300 disabled:opacity-50"
-            title="Attach Data"
+            className="flex-shrink-0 p-3 text-gray-400 hover:bg-gray-100 hover:text-indigo-600 rounded-xl transition-colors disabled:opacity-50"
+            title="Attach file"
           >
             <Paperclip className="w-5 h-5" />
           </button>
@@ -207,19 +206,19 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
             type="text"
             value={inputText}
             onChange={handleInputChange}
-            placeholder="Initialize transmission..."
+            placeholder="Type a message..."
             disabled={!isConnected || uploading}
-            className="flex-1 px-6 py-4 bg-black/50 border border-white/10 rounded-xl text-white placeholder-gray-600 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 focus:shadow-[0_0_20px_rgba(6,182,212,0.2)] outline-none transition-all text-[15px]"
+            className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-500 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition-all text-sm"
           />
           <button
             type="submit"
             disabled={!isConnected || (!inputText.trim() && !uploading)}
-            className="flex-shrink-0 px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] disabled:opacity-50 disabled:shadow-none flex items-center justify-center min-w-[80px] group/send"
+            className="flex-shrink-0 px-6 py-3 bg-indigo-600 text-white font-medium rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-sm flex items-center justify-center min-w-[80px]"
           >
             {uploading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             ) : (
-              <Send className="w-5 h-5 group-hover/send:translate-x-1 transition-transform" />
+              <Send className="w-5 h-5" />
             )}
           </button>
         </form>
