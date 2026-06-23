@@ -178,25 +178,29 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
-      {!user ? (
-        <JoinScreen />
-      ) : !roomId ? (
-        <RoomSelection user={user} onJoin={handleJoin} onLogout={handleLogout} isConnected={isConnected} />
-      ) : (
-        <ChatRoom
-          roomId={roomId}
-          user={user}
-          messages={messages}
-          typingUsers={Array.from(typingUsers)}
-          roomUsers={roomUsers}
-          onSendMessage={handleSendMessage}
-          onTyping={handleTyping}
-          onMarkAsRead={handleMarkAsRead}
-          isConnected={isConnected}
-          onLeave={handleLeave}
-        />
-      )}
+    <div className="min-h-screen animated-gradient-bg flex flex-col items-center justify-center overflow-hidden">
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 mix-blend-screen pointer-events-none"></div>
+      
+      <div className="relative z-10 w-full flex items-center justify-center px-4">
+        {!user ? (
+          <JoinScreen />
+        ) : !roomId ? (
+          <RoomSelection user={user} onJoin={handleJoin} onLogout={handleLogout} isConnected={isConnected} />
+        ) : (
+          <ChatRoom
+            roomId={roomId}
+            user={user}
+            messages={messages}
+            typingUsers={Array.from(typingUsers)}
+            roomUsers={roomUsers}
+            onSendMessage={handleSendMessage}
+            onTyping={handleTyping}
+            onMarkAsRead={handleMarkAsRead}
+            isConnected={isConnected}
+            onLeave={handleLeave}
+          />
+        )}
+      </div>
     </div>
   );
 }
