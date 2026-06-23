@@ -4,7 +4,9 @@ const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 
 const router = express.Router();
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasourceUrl: process.env.DATABASE_URL
+});
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
