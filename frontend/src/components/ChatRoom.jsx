@@ -204,8 +204,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
           </div>
         ) : (
           messages.map((msg, index) => {
-            // isMe is evaluated inside MessageRow correctly now, but we'll pass a dummy isMe for fallback
-            const isMe = msg.senderId?._id === user.id || msg.senderId === user.id;
+            const isMe = msg.senderId?.uid === user.id || msg.senderId === user.id;
             const prevMsg = index > 0 ? messages[index - 1] : null;
             const isConsecutive = prevMsg && (prevMsg.senderId?._id || prevMsg.senderId) === (msg.senderId?._id || msg.senderId) && (new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime() < 3 * 60 * 1000);
 

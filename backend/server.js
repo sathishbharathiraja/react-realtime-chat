@@ -184,7 +184,7 @@ app.get('/api/files', verifyToken, async (req, res) => {
       conversationId: { $in: convIds }, 
       mediaUrl: { $ne: null } 
     })
-    .populate('senderId', 'displayName email')
+    .populate('senderId', 'displayName email uid alias')
     .populate('conversationId', 'isGroup name participants')
     .sort({ timestamp: -1 });
 
@@ -199,7 +199,7 @@ app.get('/api/files', verifyToken, async (req, res) => {
 app.get('/api/activity', verifyToken, async (req, res) => {
   try {
     const activities = await Activity.find({ recipientId: req.user._id, resolved: false })
-      .populate('senderId', 'displayName avatarUrl')
+      .populate('senderId', 'displayName avatarUrl uid alias')
       .populate('conversationId', 'name')
       .sort({ createdAt: -1 });
     res.json(activities);
@@ -296,7 +296,7 @@ io.on('connection', async (socket) => {
       let history = await Message.find({ conversationId })
         .sort({ timestamp: -1 })
         .limit(100)
-        .populate('senderId', 'displayName avatarUrl email');
+        .populate('senderId', 'displayName avatarUrl email uid alias');
       
       history = history.reverse();
       socket.emit('history', { conversationId, messages: history });
@@ -329,7 +329,7 @@ io.on('connection', async (socket) => {
         updatedAt: new Date()
       });
 
-      const populatedMsg = await message.populate('senderId', 'displayName avatarUrl email');
+      const populatedMsg = await message.populate('senderId', 'displayName avatarUrl email uid alias');
       io.to(conversationId).emit('newMessage', populatedMsg);
     } catch (err) {
       console.error('Error saving message:', err);
