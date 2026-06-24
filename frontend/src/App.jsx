@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate, NavLink, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, NavLink, useParams, Link, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText, Phone, Settings } from 'lucide-react';
+import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText, Phone, Settings, LogOut } from 'lucide-react';
 import JoinScreen from './components/JoinScreen';
 import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
