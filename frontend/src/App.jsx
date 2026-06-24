@@ -14,7 +14,7 @@ function MainLayout({ user, token, socket, isConnected }) {
   const [conversations, setConversations] = useState([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const fetchConversations = () => {
     if (!token) return;
     fetch(`${backendUrl}/api/conversations`, {
       headers: { Authorization: `Bearer ${token}` }
@@ -22,6 +22,10 @@ function MainLayout({ user, token, socket, isConnected }) {
       .then(res => res.json())
       .then(data => setConversations(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
+  };
+
+  useEffect(() => {
+    fetchConversations();
   }, [token]);
 
   const handleLogout = async () => {
@@ -170,7 +174,7 @@ function MainLayout({ user, token, socket, isConnected }) {
           <Routes>
             <Route path="/chat" element={<div className="flex-1 flex items-center justify-center text-gray-500">Select a chat to start messaging</div>} />
             <Route path="/chat/:conversationId" element={<ChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} />} />
-            <Route path="/teams" element={<TeamsView user={user} token={token} />} />
+            <Route path="/teams" element={<TeamsView user={user} token={token} onConversationCreated={fetchConversations} />} />
             <Route path="/activity" element={<PlaceholderView icon={<Bell className="w-16 h-16" />} title="Activity" />} />
             <Route path="/calendar" element={<PlaceholderView icon={<Calendar className="w-16 h-16" />} title="Calendar" />} />
             <Route path="/calls" element={<PlaceholderView icon={<Phone className="w-16 h-16" />} title="Calls" />} />
@@ -290,7 +294,7 @@ function ChatView({ socket, user, isConnected, conversations }) {
   );
 }
 
-function TeamsView({ user, token }) {
+function TeamsView({ user, token, onConversationCreated }) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const navigate = useNavigate();
@@ -319,8 +323,8 @@ function TeamsView({ user, token }) {
         body: JSON.stringify({ targetUserId })
       });
       const data = await res.json();
+      if (onConversationCreated) onConversationCreated();
       navigate(`/chat/${data._id}`);
-      window.location.reload(); // Quick hack to refresh layout data
     } catch (err) {
       console.error(err);
     }
