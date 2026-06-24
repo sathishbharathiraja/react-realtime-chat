@@ -92,7 +92,7 @@ function MainLayout({ user, token, socket, isConnected }) {
                           !location.pathname.includes(`/chat/${rtc.activeConversationId}`);
 
   return (
-    <div className="h-screen w-full flex flex-col md:flex-row items-center justify-center p-0 sm:p-6 bg-[#F4F5F7]">
+    <div className="h-[100dvh] w-full flex flex-col md:flex-row items-center justify-center p-0 sm:p-6 bg-[#F4F5F7]">
       <div className="flex w-full h-full max-w-[1600px] overflow-hidden bg-white rounded-none sm:rounded-3xl mnc-shadow border-0 sm:border border-slate-200/60 relative">
         
         {/* Desktop Sidebar Navigation */}
@@ -556,14 +556,14 @@ export default function App() {
     return () => newSocket.disconnect();
   }, [token]);
 
-  if (loadingAuth) return <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading...</div>;
+  if (loadingAuth) return <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50">Loading...</div>;
 
   return (
     <BrowserRouter>
       <Routes>
         {!user ? (
           <>
-            <Route path="/login" element={<div className="h-screen flex items-center justify-center bg-gray-50"><JoinScreen /></div>} />
+            <Route path="/login" element={<div className="h-[100dvh] flex items-center justify-center bg-gray-50"><JoinScreen /></div>} />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </>
         ) : (
