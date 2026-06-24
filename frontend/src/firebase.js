@@ -4,13 +4,13 @@ import { getStorage } from 'firebase/storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDssdpQddpiZZpXgbu4-E9WZAlcHeW3kmI",
-  authDomain: "realtime-chat-86476.firebaseapp.com",
-  projectId: "realtime-chat-86476",
-  storageBucket: "realtime-chat-86476.firebasestorage.app",
-  messagingSenderId: "965273604934",
-  appId: "1:965273604934:web:a5051b87efcb5acdf4cb47",
-  measurementId: "G-N0EZC0SVYD"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase
