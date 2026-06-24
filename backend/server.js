@@ -126,6 +126,31 @@ app.post('/api/conversations', verifyToken, async (req, res) => {
   }
 });
 
+// Create Group Conversation
+app.post('/api/conversations/group', verifyToken, async (req, res) => {
+  const { name } = req.body;
+  try {
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Group name is required' });
+    }
+    const conv = new Conversation({
+      isGroup: true,
+      name: name.trim(),
+      participants: [req.user._id],
+      pinBoard: { status: 'On Track', links: [], deadlines: [] }
+    });
+    await conv.save();
+    const populatedConv = await conv.populate('participants');
+    
+    // Broadcast creation so UI updates
+    io.to(req.user._id.toString()).emit('conversationUpdated', populatedConv);
+    
+    res.json(populatedConv);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create group conversation' });
+  }
+});
+
 app.get('/api/conversations', verifyToken, async (req, res) => {
   try {
     const convs = await Conversation.find({ participants: req.user._id })

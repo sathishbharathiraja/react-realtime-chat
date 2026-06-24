@@ -96,12 +96,90 @@ export default function TeamsView({ conversations, socket, token, onConversation
 
   const activeConv = teamConvs.find(c => c._id === activeConvId);
 
-  if (teamConvs.length === 0) {
+  const [newTeamName, setNewTeamName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const handleCreateTeam = async (e) => {
+    e?.preventDefault();
+    if (!newTeamName.trim()) return;
+    
+    setIsCreating(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/conversations/group`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: newTeamName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNewTeamName('');
+        setShowCreateForm(false);
+        setActiveConvId(data._id);
+        if (onConversationUpdated) onConversationUpdated();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  if (teamConvs.length === 0 && !showCreateForm) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-slate-50">
-        <Pin className="w-16 h-16 text-slate-300 mb-4" />
-        <h2 className="text-xl font-bold text-slate-600">No Teams Found</h2>
-        <p className="text-slate-500">Create a group chat to start using Team Pin Boards.</p>
+        <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-indigo-500 mb-6 shadow-sm border border-slate-100">
+          <Users className="w-10 h-10" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 tracking-tight mb-2">No Teams Found</h2>
+        <p className="text-slate-500 font-medium mb-8">Create a group chat to start collaborating with your team.</p>
+        <button 
+          onClick={() => setShowCreateForm(true)}
+          className="px-8 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
+        >
+          <UserPlus className="w-5 h-5" /> Create a New Team
+        </button>
+      </div>
+    );
+  }
+
+  if (showCreateForm || (teamConvs.length === 0 && showCreateForm)) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-md w-full">
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight mb-2">Create New Team</h2>
+          <p className="text-sm text-slate-500 font-medium mb-6">Give your project or team a memorable name.</p>
+          <form onSubmit={handleCreateTeam} className="space-y-4">
+            <div>
+              <input
+                type="text"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                placeholder="e.g. Project Apollo"
+                className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              {teamConvs.length > 0 && (
+                <button 
+                  type="button"
+                  onClick={() => setShowCreateForm(false)}
+                  className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+              <button 
+                type="submit"
+                disabled={!newTeamName.trim() || isCreating}
+                className="flex-1 px-4 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center"
+              >
+                {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Team'}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     );
   }
@@ -113,15 +191,25 @@ export default function TeamsView({ conversations, socket, token, onConversation
       <div className="flex-1 border-r border-slate-100 flex flex-col bg-slate-50/50">
         <div className="p-6 border-b border-slate-100 bg-white flex justify-between items-center shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{activeConv?.name || 'Project Team'}</h2>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
+              {activeConv?.name || 'Project Team'}
+            </h2>
             <p className="text-sm text-slate-500 font-medium">{activeConv?.participants.length} Members</p>
           </div>
-          <button 
-             onClick={() => navigate(`/chat/${activeConv._id}`)} 
-             className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
-           >
-             <MessageSquare className="w-4 h-4" /> Open Chat
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowCreateForm(true)}
+              className="px-4 py-2.5 bg-slate-50 text-slate-600 font-bold rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 border border-slate-200"
+            >
+              <UserPlus className="w-4 h-4" /> New Team
+            </button>
+            <button 
+               onClick={() => navigate(`/chat/${activeConv._id}`)} 
+               className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
+             >
+               <MessageSquare className="w-4 h-4" /> Open Chat
+            </button>
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
