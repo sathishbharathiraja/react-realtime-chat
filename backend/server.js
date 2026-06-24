@@ -452,6 +452,10 @@ io.on('connection', async (socket) => {
   });
 
   // --- WebRTC Signaling (Targeted Mesh Routing) ---
+  socket.on('ringGroup', ({ conversationId, callerName }) => {
+    socket.to(conversationId).emit('groupRinging', { conversationId, callerName });
+  });
+
   socket.on('callUser', ({ userToCall, signalData, from, name, conversationId }) => {
     // userToCall is the target's socket.id. Send specifically to them.
     io.to(userToCall).emit('incomingCall', { 

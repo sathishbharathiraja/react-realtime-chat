@@ -102,11 +102,30 @@ export function useWebRTC(socket, user) {
     setActiveConversationId(conversationId);
     setCallState('connected');
     
+    // Notify others in the group that a call is ringing
+    socket.emit('ringGroup', { conversationId, callerName: user.displayName });
+    
     socket.emit('joinHuddle', { conversationId });
   };
 
-  const answerCall = async () => {};
-  const rejectCall = () => {};
+  const answerCall = async () => {
+    if (!incomingCall || !socket) return;
+    const { conversationId } = incomingCall;
+    
+    setIncomingCall(null);
+    setCallState('connected');
+    setActiveConversationId(conversationId);
+
+    const stream = await initStream(true);
+    if (!stream) return;
+
+    socket.emit('joinHuddle', { conversationId });
+  };
+
+  const rejectCall = () => {
+    setIncomingCall(null);
+    setCallState('idle');
+  };
 
   const endCall = () => {
     if (activeConversationId && socket) {
@@ -228,11 +247,18 @@ export function useWebRTC(socket, user) {
       removePeer(socketId);
     };
 
+    const handleGroupRinging = ({ conversationId, callerName }) => {
+      if (callState !== 'idle') return;
+      setIncomingCall({ conversationId, name: callerName });
+      setCallState('ringing');
+    };
+
     socket.on('huddlePeers', handleHuddlePeers);
     socket.on('incomingCall', handleIncomingCall);
     socket.on('callAccepted', handleCallAccepted);
     socket.on('iceCandidate', handleIceCandidate);
     socket.on('userLeftHuddle', handleUserLeft);
+    socket.on('groupRinging', handleGroupRinging);
 
     return () => {
       socket.off('huddlePeers', handleHuddlePeers);
@@ -240,8 +266,9 @@ export function useWebRTC(socket, user) {
       socket.off('callAccepted', handleCallAccepted);
       socket.off('iceCandidate', handleIceCandidate);
       socket.off('userLeftHuddle', handleUserLeft);
+      socket.off('groupRinging', handleGroupRinging);
     };
-  }, [socket, activeConversationId, user.displayName]);
+  }, [socket, activeConversationId, user.displayName, callState]);
 
   return {
     callState,
