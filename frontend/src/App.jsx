@@ -126,7 +126,7 @@ function MainLayout({ user, token, socket, isConnected }) {
           <Routes>
             <Route path="/chat" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
             <Route path="/chat/:conversationId" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
-            <Route path="/teams" element={<TeamsView conversations={conversations} socket={socket} token={token} />} />
+            <Route path="/teams" element={<TeamsView conversations={conversations} socket={socket} token={token} onConversationUpdated={fetchConversations} />} />
             <Route path="/activity" element={<ActivityView token={token} />} />
             <Route path="/calendar" element={<CalendarView token={token} />} />
             <Route path="/calls" element={<CallsView conversations={conversations} socket={socket} />} />

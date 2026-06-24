@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Pin, Link as LinkIcon, Clock, MessageSquare } from 'lucide-react';
+import { Pin, Link as LinkIcon, Clock, MessageSquare, Users, UserPlus, Search, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
-export default function TeamsView({ conversations, socket, token }) {
+export default function TeamsView({ conversations, socket, token, onConversationUpdated }) {
   const [activeConvId, setActiveConvId] = useState(null);
   const [pinBoard, setPinBoard] = useState({ status: 'On Track', links: [], deadlines: [] });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
 
   const teamConvs = conversations.filter(c => c.isGroup);
@@ -19,17 +22,26 @@ export default function TeamsView({ conversations, socket, token }) {
   }, [teamConvs, activeConvId]);
 
   useEffect(() => {
-    if (!socket || !activeConvId) return;
-
+    if (!socket) return;
+    
     const handlePinBoardUpdate = (data) => {
-      if (data.conversationId === activeConvId) {
-        setPinBoard(data.pinBoard);
+      if (data.conversationId === activeConvId) setPinBoard(data.pinBoard);
+    };
+
+    const handleConversationUpdated = (data) => {
+      if (data._id === activeConvId && onConversationUpdated) {
+        onConversationUpdated(); // Trigger refresh in App.jsx
       }
     };
 
     socket.on('pinBoardUpdated', handlePinBoardUpdate);
-    return () => socket.off('pinBoardUpdated', handlePinBoardUpdate);
-  }, [socket, activeConvId]);
+    socket.on('conversationUpdated', handleConversationUpdated);
+    
+    return () => {
+      socket.off('pinBoardUpdated', handlePinBoardUpdate);
+      socket.off('conversationUpdated', handleConversationUpdated);
+    };
+  }, [socket, activeConvId, onConversationUpdated]);
 
   const updateStatus = async (status) => {
     setPinBoard(prev => ({ ...prev, status }));
@@ -39,6 +51,44 @@ export default function TeamsView({ conversations, socket, token }) {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status })
       });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSearch = async (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/users/search?query=${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddMember = async (targetUserId) => {
+    try {
+      const res = await fetch(`${backendUrl}/api/conversations/${activeConvId}/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUserId })
+      });
+      if (res.ok) {
+        setSearchQuery('');
+        setSearchResults([]);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -59,26 +109,105 @@ export default function TeamsView({ conversations, socket, token }) {
   return (
     <div className="flex-1 flex h-full bg-white overflow-hidden">
       
-      {/* Left Column: Real-Time Chat Engine */}
-      <div className="flex-1 border-r border-slate-100 flex flex-col bg-white">
-        <div className="p-6 border-b border-slate-100 bg-white">
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{activeConv?.name || 'Project Team'}</h2>
-          <p className="text-sm text-slate-500 font-medium">{activeConv?.participants.length} Members</p>
-        </div>
-        <div className="flex-1 overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/50">
-           <MessageSquare className="w-12 h-12 text-slate-300 mb-4" />
-           <p className="text-slate-500 font-medium">Chat messaging is managed in the Unified Chat view.</p>
-           <button 
+      {/* Left Column: Team Members & Chat Engine */}
+      <div className="flex-1 border-r border-slate-100 flex flex-col bg-slate-50/50">
+        <div className="p-6 border-b border-slate-100 bg-white flex justify-between items-center shrink-0">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{activeConv?.name || 'Project Team'}</h2>
+            <p className="text-sm text-slate-500 font-medium">{activeConv?.participants.length} Members</p>
+          </div>
+          <button 
              onClick={() => navigate(`/chat/${activeConv._id}`)} 
-             className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+             className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm flex items-center gap-2"
            >
-             Open Full Chat
-           </button>
+             <MessageSquare className="w-4 h-4" /> Open Chat
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+          <div className="max-w-2xl mx-auto space-y-8">
+            
+            {/* Add Member Section */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                <UserPlus className="w-5 h-5 text-indigo-500" /> Add Team Member
+              </h3>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearch}
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium placeholder-slate-400"
+                  placeholder="Search by name, email, or alias..."
+                />
+                {isSearching && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <Loader2 className="h-5 w-5 text-indigo-500 animate-spin" />
+                  </div>
+                )}
+              </div>
+              
+              {searchResults.length > 0 && (
+                <div className="mt-4 border border-slate-100 rounded-xl overflow-hidden bg-white shadow-sm">
+                  {searchResults.map(user => {
+                    const isAlreadyMember = activeConv.participants.some(p => p._id === user._id);
+                    return (
+                      <div key={user._id} className="flex items-center justify-between p-3 border-b border-slate-50 last:border-0 hover:bg-slate-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
+                            {user.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (user.alias || user.displayName || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-800 text-sm">{user.alias || user.displayName}</div>
+                            <div className="text-xs text-slate-500">{user.email}</div>
+                          </div>
+                        </div>
+                        {isAlreadyMember ? (
+                          <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full">Joined</span>
+                        ) : (
+                          <button 
+                            onClick={() => handleAddMember(user._id)}
+                            className="text-xs font-bold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-4 py-1.5 rounded-full transition-colors"
+                          >
+                            Add
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Member Directory */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-6">
+                <Users className="w-5 h-5 text-indigo-500" /> Team Directory ({activeConv.participants.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {activeConv.participants.map(p => (
+                  <div key={p._id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="w-12 h-12 rounded-full bg-white flex shrink-0 items-center justify-center text-indigo-600 font-bold shadow-sm border border-slate-100">
+                      {p.avatarUrl ? <img src={p.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (p.alias || p.displayName || p.email).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-800 text-[15px] truncate">{p.alias || p.displayName}</div>
+                      <div className="text-xs text-slate-500 font-medium truncate">{p.email}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
         </div>
       </div>
 
       {/* Right Column: Persistent Pin Board */}
-      <div className="w-80 bg-white flex flex-col overflow-y-auto custom-scrollbar relative">
+      <div className="w-80 bg-white flex flex-col overflow-y-auto custom-scrollbar relative border-l border-slate-100 shrink-0">
         <div className="p-6 border-b border-slate-100 shrink-0">
           <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <Pin className="w-5 h-5 text-indigo-500" /> Pin Board

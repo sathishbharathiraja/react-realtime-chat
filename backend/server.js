@@ -91,9 +91,18 @@ const verifyToken = async (req, res, next) => {
 
 // Search Users
 app.get('/api/users/search', verifyToken, async (req, res) => {
-  const { email } = req.query;
-  if (!email) return res.json([]);
-  const users = await User.find({ email: new RegExp(email, 'i'), _id: { $ne: req.user._id } }).limit(10);
+  const searchQuery = req.query.query || req.query.email;
+  if (!searchQuery) return res.json([]);
+  
+  const regex = new RegExp(searchQuery, 'i');
+  const users = await User.find({ 
+    _id: { $ne: req.user._id },
+    $or: [
+      { email: regex },
+      { displayName: regex },
+      { alias: regex }
+    ]
+  }).limit(10);
   res.json(users);
 });
 
@@ -147,6 +156,29 @@ app.put('/api/conversations/:id/pinboard', verifyToken, async (req, res) => {
     res.json(conv);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update pinboard' });
+  }
+});
+
+app.post('/api/conversations/:id/participants', verifyToken, async (req, res) => {
+  try {
+    const { targetUserId } = req.body;
+    const conv = await Conversation.findOne({ _id: req.params.id, participants: req.user._id });
+    if (!conv) return res.status(404).json({ error: 'Conversation not found or you are not a member' });
+    if (!conv.isGroup) return res.status(400).json({ error: 'Can only add participants to group conversations' });
+    
+    if (!conv.participants.includes(targetUserId)) {
+      conv.participants.push(targetUserId);
+      await conv.save();
+    }
+    
+    const populatedConv = await Conversation.findById(conv._id).populate('participants');
+    
+    // Broadcast the update to the socket room
+    io.to(conv._id.toString()).emit('conversationUpdated', populatedConv);
+    
+    res.json(populatedConv);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add participant' });
   }
 });
 
