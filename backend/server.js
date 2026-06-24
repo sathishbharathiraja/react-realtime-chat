@@ -60,14 +60,22 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   res.json({ url: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` });
 });
 
-// Middleware to verify Firebase token for API
 const verifyToken = async (req, res, next) => {
   const token = req.headers.authorization?.split('Bearer ')[1];
   if (!token) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    const decoded = await getAuth(firebaseApp).verifyIdToken(token);
-    req.user = await User.findOne({ uid: decoded.uid });
-    if (!req.user) return res.status(401).json({ error: 'User not synced' });
+    const decodedToken = await getAuth(firebaseApp).verifyIdToken(token);
+    let user = await User.findOne({ uid: decodedToken.uid });
+    if (!user) {
+      user = new User({
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        displayName: decodedToken.name || decodedToken.email.split('@')[0],
+        avatarUrl: decodedToken.picture || ''
+      });
+      await user.save();
+    }
+    req.user = user;
     next();
   } catch (err) {
     res.status(401).json({ error: 'Invalid token' });
