@@ -19,6 +19,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Set headers for Firebase Authentication Popups
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  next();
+});
+
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
