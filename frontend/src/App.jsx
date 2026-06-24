@@ -126,12 +126,12 @@ function MainLayout({ user, token, socket, isConnected }) {
           <Routes>
             <Route path="/chat" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
             <Route path="/chat/:conversationId" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
-            <Route path="/teams" element={<TeamsView />} />
-            <Route path="/activity" element={<ActivityView />} />
-            <Route path="/calendar" element={<CalendarView />} />
-            <Route path="/calls" element={<CallsView />} />
-            <Route path="/files" element={<FilesView />} />
-            <Route path="/settings" element={<SettingsView user={user} onLogout={handleLogout} />} />
+            <Route path="/teams" element={<TeamsView conversations={conversations} socket={socket} token={token} />} />
+            <Route path="/activity" element={<ActivityView token={token} />} />
+            <Route path="/calendar" element={<CalendarView token={token} />} />
+            <Route path="/calls" element={<CallsView conversations={conversations} socket={socket} />} />
+            <Route path="/files" element={<FilesView token={token} />} />
+            <Route path="/settings" element={<SettingsView user={user} onLogout={handleLogout} token={token} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </div>

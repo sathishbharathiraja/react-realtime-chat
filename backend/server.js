@@ -14,6 +14,7 @@ const multer = require('multer');
 const User = require('./models/User');
 const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
+const Activity = require('./models/Activity');
 
 const app = express();
 app.use(cors());
@@ -128,8 +129,127 @@ app.get('/api/conversations', verifyToken, async (req, res) => {
   }
 });
 
+app.put('/api/conversations/:id/pinboard', verifyToken, async (req, res) => {
+  try {
+    const { status, links, deadlines } = req.body;
+    const conv = await Conversation.findOne({ _id: req.params.id, participants: req.user._id });
+    if (!conv) return res.status(404).json({ error: 'Conversation not found' });
+    
+    if (status) conv.pinBoard.status = status;
+    if (links) conv.pinBoard.links = links;
+    if (deadlines) conv.pinBoard.deadlines = deadlines;
+    
+    await conv.save();
+    
+    // Broadcast the update to the socket room
+    io.to(conv._id.toString()).emit('pinBoardUpdated', { conversationId: conv._id, pinBoard: conv.pinBoard });
+    
+    res.json(conv);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update pinboard' });
+  }
+});
+
+// Settings
+app.get('/api/users/settings', verifyToken, async (req, res) => {
+  res.json({
+    quietHours: req.user.quietHours || false,
+    muteAll: req.user.muteAll || false
+  });
+});
+
+app.put('/api/users/settings', verifyToken, async (req, res) => {
+  try {
+    const { quietHours, muteAll } = req.body;
+    req.user.quietHours = quietHours;
+    req.user.muteAll = muteAll;
+    await req.user.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Files (Attachments)
+app.get('/api/files', verifyToken, async (req, res) => {
+  try {
+    // Find messages with a mediaUrl where the user is a participant of the conversation
+    // To do this simply, we find conversations the user is in first:
+    const convs = await Conversation.find({ participants: req.user._id }, '_id');
+    const convIds = convs.map(c => c._id);
+
+    const files = await Message.find({ 
+      conversationId: { $in: convIds }, 
+      mediaUrl: { $ne: null } 
+    })
+    .populate('senderId', 'displayName email')
+    .populate('conversationId', 'isGroup name participants')
+    .sort({ timestamp: -1 });
+
+    res.json(files);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch files' });
+  }
+});
+
+// Activity (Action Inbox)
+app.get('/api/activity', verifyToken, async (req, res) => {
+  try {
+    const activities = await Activity.find({ recipientId: req.user._id, resolved: false })
+      .populate('senderId', 'displayName avatarUrl')
+      .populate('conversationId', 'name')
+      .sort({ createdAt: -1 });
+    res.json(activities);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch activities' });
+  }
+});
+
+app.post('/api/activity', verifyToken, async (req, res) => {
+  try {
+    const { recipientId, type, text, conversationId } = req.body;
+    const activity = new Activity({
+      recipientId,
+      senderId: req.user._id,
+      type,
+      text,
+      conversationId
+    });
+    await activity.save();
+    res.json(activity);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create activity' });
+  }
+});
+
+app.delete('/api/activity/:id', verifyToken, async (req, res) => {
+  try {
+    const activity = await Activity.findOne({ _id: req.params.id, recipientId: req.user._id });
+    if (!activity) return res.status(404).json({ error: 'Not found' });
+    activity.resolved = true;
+    await activity.save();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to resolve activity' });
+  }
+});
+
+// Calendar (Simulated Integration due to OAuth constraints)
+app.get('/api/calendar', verifyToken, (req, res) => {
+  // In a real app, this would use googleapis with req.user's OAuth token
+  res.json([
+    { id: 1, title: 'Weekly Sync', time: '10:00 AM - 11:00 AM', link: 'https://meet.google.com/abc', platform: 'meet', attendees: ['Sathish', 'Sarah'] },
+    { id: 2, title: 'Client Pitch', time: '1:00 PM - 2:00 PM', link: 'https://zoom.us/j/123', platform: 'zoom', attendees: ['Sathish', 'David'] },
+    { id: 3, title: '1:1 with Manager', time: '4:00 PM - 4:30 PM', link: 'https://meet.google.com/xyz', platform: 'meet', attendees: ['Sathish', 'Manager'] }
+  ]);
+});
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
+
+// Track active huddle participants in memory
+const huddles = {}; // { roomId: [userObj] }
 
 io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
@@ -233,6 +353,34 @@ io.on('connection', async (socket) => {
 
   socket.on('stopTyping', ({ conversationId }) => {
     socket.to(conversationId).emit('userStopTyping', { sender: socket.user.displayName, conversationId });
+  });
+
+  // --- Huddles ---
+  socket.on('getHuddles', () => {
+    socket.emit('huddlesList', huddles);
+  });
+
+  socket.on('joinHuddle', ({ conversationId }) => {
+    if (!huddles[conversationId]) huddles[conversationId] = [];
+    const alreadyIn = huddles[conversationId].find(u => u._id.toString() === socket.user._id.toString());
+    if (!alreadyIn) {
+      huddles[conversationId].push({
+        _id: socket.user._id,
+        displayName: socket.user.displayName,
+        avatarUrl: socket.user.avatarUrl
+      });
+      io.emit('huddlesList', huddles); // Broadcast to all for global dashboard updates
+    }
+    socket.join(`huddle_${conversationId}`);
+  });
+
+  socket.on('leaveHuddle', ({ conversationId }) => {
+    if (huddles[conversationId]) {
+      huddles[conversationId] = huddles[conversationId].filter(u => u._id.toString() !== socket.user._id.toString());
+      if (huddles[conversationId].length === 0) delete huddles[conversationId];
+      io.emit('huddlesList', huddles);
+    }
+    socket.leave(`huddle_${conversationId}`);
   });
 
   // --- WebRTC Signaling ---

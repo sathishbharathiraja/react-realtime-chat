@@ -6,6 +6,8 @@ const userSchema = new mongoose.Schema({
   displayName: { type: String, required: true },
   avatarUrl: { type: String },
   lastSeen: { type: Date, default: Date.now },
+  quietHours: { type: Boolean, default: false },
+  muteAll: { type: Boolean, default: false },
 });
 
 module.exports = mongoose.model('User', userSchema);

@@ -1,18 +1,64 @@
-import React, { useState } from 'react';
-import { Moon, BellOff, Shield, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Moon, BellOff, LogOut, Loader2 } from 'lucide-react';
 
-export default function SettingsView({ user, onLogout }) {
+const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
+
+export default function SettingsView({ user, onLogout, token }) {
   const [quietHours, setQuietHours] = useState(false);
   const [muteAll, setMuteAll] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${backendUrl}/api/users/settings`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        setQuietHours(data.quietHours || false);
+        setMuteAll(data.muteAll || false);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [token]);
+
+  const updateSetting = async (key, value) => {
+    const payload = {
+      quietHours: key === 'quietHours' ? value : quietHours,
+      muteAll: key === 'muteAll' ? value : muteAll
+    };
+    
+    if (key === 'quietHours') setQuietHours(value);
+    if (key === 'muteAll') setMuteAll(value);
+
+    try {
+      await fetch(`${backendUrl}/api/users/settings`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` 
+        },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.error('Failed to update setting', err);
+    }
+  };
+
+  if (loading) {
+    return <div className="flex-1 flex items-center justify-center bg-slate-50/50"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
+  }
 
   return (
     <div className="flex-1 flex flex-col p-8 bg-slate-50/50">
       <div className="max-w-3xl w-full mx-auto">
         
         <div className="flex items-center gap-6 mb-10 pb-8 border-b border-slate-200">
-          <div className="w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 text-3xl font-bold shadow-sm">
-            {user?.displayName?.charAt(0).toUpperCase()}
+          <div className="w-20 h-20 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 text-3xl font-bold shadow-sm overflow-hidden">
+            {user?.avatarUrl ? <img src={user.avatarUrl} className="w-full h-full object-cover" /> : user?.displayName?.charAt(0).toUpperCase()}
           </div>
           <div>
             <h2 className="text-3xl font-bold text-slate-800 tracking-tight">{user?.displayName}</h2>
@@ -34,7 +80,7 @@ export default function SettingsView({ user, onLogout }) {
               </div>
             </div>
             <button 
-              onClick={() => setQuietHours(!quietHours)}
+              onClick={() => updateSetting('quietHours', !quietHours)}
               className={`w-12 h-6 rounded-full transition-colors relative ${quietHours ? 'bg-green-500' : 'bg-slate-200'}`}
             >
               <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${quietHours ? 'left-7' : 'left-1'}`} />
@@ -52,7 +98,7 @@ export default function SettingsView({ user, onLogout }) {
               </div>
             </div>
             <button 
-              onClick={() => setMuteAll(!muteAll)}
+              onClick={() => updateSetting('muteAll', !muteAll)}
               className={`w-12 h-6 rounded-full transition-colors relative ${muteAll ? 'bg-green-500' : 'bg-slate-200'}`}
             >
               <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${muteAll ? 'left-7' : 'left-1'}`} />
