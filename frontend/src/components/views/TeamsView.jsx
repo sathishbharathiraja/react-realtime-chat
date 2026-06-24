@@ -320,7 +320,6 @@ export default function TeamsView({ conversations, socket, token, onConversation
                 <option value="At Risk">At Risk</option>
                 <option value="Blocked">Blocked</option>
               </select>
-              <p className="text-sm text-slate-700 font-medium leading-relaxed">Status updated live via MongoDB.</p>
             </div>
           </div>
 
