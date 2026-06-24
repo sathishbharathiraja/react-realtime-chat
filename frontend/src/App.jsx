@@ -37,144 +37,65 @@ function MainLayout({ user, token, socket, isConnected }) {
     navigate('/login');
   };
 
-  const navLinkClass = ({ isActive }) => 
-    `flex flex-col items-center gap-1 cursor-pointer group relative ${isActive ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`;
+  function NavItem({ icon, label, to }) {
+    const location = useLocation();
+    const isActive = location.pathname.startsWith(to);
+  
+    return (
+      <Link 
+        to={to} 
+        className={`relative group flex flex-col items-center justify-center py-2.5 rounded-xl transition-all ${
+          isActive ? 'text-indigo-600 bg-indigo-50/50' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+        }`}
+      >
+        {isActive && (
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-indigo-600 rounded-r-full"></div>
+        )}
+        {icon}
+        <span className="text-[10px] mt-1.5 font-medium">{label}</span>
+      </Link>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-white font-sans text-gray-900">
-      {/* Top Navbar */}
-      <div className="h-12 w-full bg-[#464eb8] flex items-center justify-between px-4 shrink-0 shadow-sm z-20">
-        <div className="text-white font-bold text-[15px] tracking-wide flex items-center gap-2 w-64">
-          CorpChat Teams
-        </div>
+    <div className="h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F4F5F7]">
+      <div className="flex w-full h-full max-w-[1600px] overflow-hidden bg-white rounded-3xl mnc-shadow border border-slate-200/60">
         
-        <div className="flex-1 max-w-2xl flex items-center">
-          <div className="w-full bg-white/20 hover:bg-white/30 transition-colors rounded-md h-8 flex items-center px-3 text-white/90">
-            <Search className="w-4 h-4 mr-2 opacity-70" />
-            <input type="text" placeholder="Search messages, people, or files" className="bg-transparent border-none outline-none text-sm w-full placeholder-white/70" />
+        {/* Sidebar Navigation */}
+        <div className="w-[72px] bg-white border-r border-slate-100 flex flex-col items-center py-6 gap-6 z-10">
+          
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+            C
           </div>
-        </div>
 
-        <div className="flex items-center justify-end gap-4 w-64">
-          <MoreHorizontal className="w-5 h-5 text-white/90 cursor-pointer" />
-          <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold text-white border border-white/30 cursor-pointer">
-            {user.displayName?.charAt(0).toUpperCase()}
+          <div className="flex flex-col gap-3 mt-4 w-full px-3">
+            <NavItem icon={<Bell className="w-6 h-6" />} label="Activity" to="/activity" />
+            <NavItem icon={<MessageSquare className="w-6 h-6" />} label="Chat" to="/chat" />
+            <NavItem icon={<Users className="w-6 h-6" />} label="Teams" to="/teams" />
+            <NavItem icon={<Calendar className="w-6 h-6" />} label="Calendar" to="/calendar" />
+            <NavItem icon={<Phone className="w-6 h-6" />} label="Calls" to="/calls" />
+            <NavItem icon={<FileText className="w-6 h-6" />} label="Files" to="/files" />
           </div>
-        </div>
-      </div>
 
-      <div className="flex flex-1 overflow-hidden bg-[#f5f5f5]">
-        {/* Primary App Bar */}
-        <div className="w-[68px] bg-[#ebebeb] flex flex-col items-center py-4 gap-6 shrink-0 border-r border-gray-200">
-          <NavLink to="/activity" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <Bell className={`w-6 h-6 transition-transform ${isActive ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Activity</span>
-              </>
-            )}
-          </NavLink>
-          <NavLink to="/chat" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <MessageSquare className={`w-6 h-6 transition-transform ${isActive ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Chat</span>
-              </>
-            )}
-          </NavLink>
-          <NavLink to="/teams" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <Users className={`w-6 h-6 transition-transform ${isActive ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Teams</span>
-              </>
-            )}
-          </NavLink>
-          <NavLink to="/calendar" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <Calendar className={`w-6 h-6 transition-transform ${isActive ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Calendar</span>
-              </>
-            )}
-          </NavLink>
-          <NavLink to="/calls" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <Phone className={`w-6 h-6 transition-transform ${isActive ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Calls</span>
-              </>
-            )}
-          </NavLink>
-          <NavLink to="/files" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <FileText className={`w-6 h-6 transition-transform ${isActive ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Files</span>
-              </>
-            )}
-          </NavLink>
-          <div className="flex-1"></div>
-          <NavLink to="/settings" className={navLinkClass}>
-            {({ isActive }) => (
-              <>
-                {isActive && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
-                <Settings className={`w-6 h-6 transition-transform ${isActive ? 'text-[#464eb8]' : 'group-hover:scale-110'}`} />
-                <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>Settings</span>
-              </>
-            )}
-          </NavLink>
-        </div>
-
-        {/* Secondary Sidebar (Chat List) */}
-        <div className="w-[320px] bg-white flex flex-col shrink-0 border-r border-gray-200 z-10">
-          <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">Chats</h2>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            <div className="flex items-center justify-between px-2 mb-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent</span>
+          <div className="mt-auto flex flex-col gap-4 items-center">
+            <button className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all">
+              <Settings className="w-6 h-6" />
+            </button>
+            <button className="p-2.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all" onClick={handleLogout} title="Logout">
+              <LogOut className="w-6 h-6" />
+            </button>
+            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mt-2">
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-slate-600 font-medium">{user?.displayName?.charAt(0)?.toUpperCase()}</span>
+              )}
             </div>
-            
-            {conversations.length === 0 ? (
-              <div className="text-xs text-gray-400 p-2">No conversations yet. Go to Teams to start one.</div>
-            ) : (
-              conversations.map(conv => {
-                const otherParticipant = conv.participants.find(p => p.email !== user.email);
-                const title = conv.isGroup ? conv.name : otherParticipant?.displayName || 'Unknown';
-                const avatarLetter = title.charAt(0).toUpperCase();
-
-                return (
-                  <NavLink key={conv._id} to={`/chat/${conv._id}`} className={({ isActive }) => `flex items-center gap-3 p-2 rounded-lg cursor-pointer mt-1 ${isActive ? 'bg-gray-100' : 'hover:bg-gray-50'}`}>
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
-                        {avatarLetter}
-                      </div>
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <span className="text-sm font-semibold text-gray-900 truncate">{title}</span>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate">
-                        {conv.lastMessage ? 'New message' : 'Start chatting...'}
-                      </p>
-                    </div>
-                  </NavLink>
-                );
-              })
-            )}
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0 relative">
+        <div className="flex-1 bg-white flex flex-col min-w-0 relative">
           
           <IncomingCallModal 
             incomingCall={rtc.incomingCall} 
@@ -184,6 +105,8 @@ function MainLayout({ user, token, socket, isConnected }) {
           
           <ActiveCall 
             callState={rtc.callState}
+            localStream={rtc.localStream}
+            remoteStream={rtc.remoteStream}
             localVideoRef={rtc.localVideoRef}
             remoteVideoRef={rtc.remoteVideoRef}
             isAudioMuted={rtc.isAudioMuted}
@@ -194,9 +117,9 @@ function MainLayout({ user, token, socket, isConnected }) {
           />
 
           <Routes>
-            <Route path="/chat" element={<div className="flex-1 flex items-center justify-center text-gray-500">Select a chat to start messaging</div>} />
-            <Route path="/chat/:conversationId" element={<ChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} onStartCall={rtc.startCall} />} />
-            <Route path="/teams" element={<TeamsView user={user} token={token} onConversationCreated={fetchConversations} />} />
+            <Route path="/chat" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
+            <Route path="/chat/:conversationId" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
+            <Route path="/teams" element={<Navigate to="/chat" replace />} />
             <Route path="/activity" element={<PlaceholderView icon={<Bell className="w-16 h-16" />} title="Activity" />} />
             <Route path="/calendar" element={<PlaceholderView icon={<Calendar className="w-16 h-16" />} title="Calendar" />} />
             <Route path="/calls" element={<PlaceholderView icon={<Phone className="w-16 h-16" />} title="Calls" />} />
@@ -210,8 +133,7 @@ function MainLayout({ user, token, socket, isConnected }) {
   );
 }
 
-function ChatView({ socket, user, isConnected, conversations, onStartCall }) {
-  const { conversationId } = useParams();
+function ChatView({ socket, user, isConnected, conversations, onStartCall, conversationId }) {
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   
@@ -317,7 +239,8 @@ function ChatView({ socket, user, isConnected, conversations, onStartCall }) {
   );
 }
 
-function TeamsView({ user, token, onConversationCreated }) {
+function UnifiedChatView({ socket, user, isConnected, token, conversations, onStartCall, onConversationCreated }) {
+  const { conversationId } = useParams();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
   const navigate = useNavigate();
@@ -347,6 +270,7 @@ function TeamsView({ user, token, onConversationCreated }) {
       });
       const data = await res.json();
       if (onConversationCreated) onConversationCreated();
+      setSearch(''); // Clear search to go back to list
       navigate(`/chat/${data._id}`);
     } catch (err) {
       console.error(err);
@@ -354,28 +278,114 @@ function TeamsView({ user, token, onConversationCreated }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-8 bg-white overflow-y-auto">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Start a New Chat</h2>
-      <div className="flex gap-2 max-w-md mb-6">
-        <input 
-          type="text" 
-          placeholder="Search users by email..." 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 p-2 border border-gray-300 rounded"
-        />
-        <button onClick={handleSearch} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Search</button>
-      </div>
-      <div className="max-w-md">
-        {results.map(r => (
-          <div key={r._id} className="flex items-center justify-between p-4 border border-gray-200 rounded mb-2">
-            <div>
-              <p className="font-bold">{r.displayName}</p>
-              <p className="text-sm text-gray-500">{r.email}</p>
-            </div>
-            <button onClick={() => handleStartChat(r._id)} className="px-3 py-1 bg-gray-100 text-indigo-600 font-medium rounded hover:bg-gray-200">Message</button>
+    <div className="flex h-full w-full bg-white rounded-[24px]">
+      {/* Sidebar List (WhatsApp Style) */}
+      <div className="w-80 bg-white border-r border-slate-100 flex flex-col flex-shrink-0 z-10">
+        <div className="p-6 pb-4">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Chats</h2>
           </div>
-        ))}
+          
+          <div className="relative group flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Search directory..." 
+              className="w-full bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl border border-transparent focus:border-indigo-100 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all outline-none text-sm font-medium placeholder:text-slate-400"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <button onClick={handleSearch} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm">Search</button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4">
+          <div className="space-y-1 mt-2">
+            {search ? (
+              // Show Search Results
+              results.length === 0 ? (
+                <div className="text-center text-slate-400 py-8 text-sm">No results found in directory</div>
+              ) : (
+                results.map(u => (
+                  <div 
+                    key={u._id} 
+                    onClick={() => handleStartChat(u._id)}
+                    className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors border border-transparent hover:border-slate-100"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm">
+                        {u.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-slate-700">{u.displayName}</div>
+                        <div className="text-[11px] text-slate-400 font-medium">{u.email}</div>
+                      </div>
+                    </div>
+                    <MessageSquare className="w-4 h-4 text-slate-300" />
+                  </div>
+                ))
+              )
+            ) : (
+              // Show Recent Conversations History
+              conversations.length === 0 ? (
+                <div className="text-center text-slate-400 py-8 text-sm">No conversations yet. Search to start one!</div>
+              ) : (
+                conversations.map(conv => {
+                  const otherParticipant = conv.participants.find(p => p.email !== user.email);
+                  const title = conv.isGroup ? conv.name : otherParticipant?.displayName || 'Unknown';
+                  const avatarLetter = title.charAt(0).toUpperCase();
+                  const isActive = conv._id === conversationId;
+
+                  return (
+                    <div 
+                      key={conv._id} 
+                      onClick={() => navigate(`/chat/${conv._id}`)}
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-colors border border-transparent ${
+                        isActive ? 'bg-indigo-50 border-indigo-100' : 'hover:bg-slate-50 hover:border-slate-100'
+                      }`}
+                    >
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg shadow-sm">
+                          {avatarLetter}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline mb-0.5">
+                          <span className="text-[14px] font-semibold text-slate-800 truncate">{title}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 truncate font-medium">
+                          {conv.lastMessage?.text || 'Start chatting...'}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Detail Area */}
+      <div className="flex-1 bg-slate-50/50 flex flex-col relative rounded-r-[24px] overflow-hidden">
+        {conversationId ? (
+          <ChatView 
+            socket={socket} 
+            user={user} 
+            isConnected={isConnected} 
+            conversations={conversations} 
+            onStartCall={onStartCall} 
+            conversationId={conversationId} 
+          />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-indigo-500 mb-6 shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-slate-100">
+              <MessageSquare className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2 tracking-tight">CorpChat Web</h3>
+            <p className="text-slate-500 max-w-md font-medium">Select a conversation from the sidebar or search the directory to start chatting instantly.</p>
+          </div>
+        )}
       </div>
     </div>
   );

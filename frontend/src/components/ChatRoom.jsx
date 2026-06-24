@@ -99,61 +99,63 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white relative">
+    <div className="flex flex-col h-full bg-white relative rounded-r-[24px]">
       
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-2 bg-white border-b border-gray-200 z-10 shrink-0 h-14">
+      <div className="h-[72px] bg-white/80 backdrop-blur-md flex items-center justify-between px-6 border-b border-slate-100 z-10 sticky top-0 shrink-0">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm shadow-sm">
               {(title || roomId).charAt(0).toUpperCase()}
             </div>
             <div>
-              <span className="font-bold text-[15px] text-gray-900 tracking-tight">{title || `Room: ${roomId}`}</span>
-              <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium">
-                <span>Chat</span>
-                <span>•</span>
-                <span>{roomUsers.length} Members</span>
+              <span className="font-bold text-[15px] text-slate-800 tracking-tight">{title || `Room: ${roomId}`}</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span>{isConnected ? 'Connected' : 'Reconnecting...'}</span>
+                {roomUsers.length > 2 && (
+                  <>
+                    <span className="text-slate-300">•</span>
+                    <span>{roomUsers.length} Members</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-4 text-sm font-semibold text-gray-500 h-full mt-2">
-            <div className="border-b-2 border-[#464eb8] text-[#464eb8] pb-3 px-1 cursor-pointer">Chat</div>
-            <div className="pb-3 px-1 hover:text-gray-700 cursor-pointer">Files</div>
-            <div className="pb-3 px-1 hover:text-gray-700 cursor-pointer">+</div>
-          </div>
         </div>
-        
-        <div className="flex items-center gap-4">
-          <div className="flex -space-x-2 mr-2">
-            {roomUsers.slice(0,3).map((u, i) => (
-              <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600">
-                {(typeof u === 'object' ? u.displayName : u).charAt(0).toUpperCase()}
-              </div>
-            ))}
-          </div>
-          
-          <div className="flex items-center gap-4 text-gray-400">
-            <Video className="w-5 h-5 cursor-pointer hover:text-gray-700" onClick={() => onStartCall(roomId, true)} />
-            <Phone className="w-4 h-4 cursor-pointer hover:text-gray-700" onClick={() => onStartCall(roomId, false)} />
-            <div className="w-px h-4 bg-gray-300 mx-1"></div>
-            <button onClick={onLeave} className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors" title="Leave">
-              <LogOut className="w-4 h-4" />
+
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
+            <button 
+              onClick={() => onStartCall(roomId, true)}
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all shadow-sm"
+              title="Video Call"
+            >
+              <Video className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => onStartCall(roomId, false)}
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all shadow-sm"
+              title="Voice Call"
+            >
+              <Phone className="w-4 h-4" />
             </button>
           </div>
+          <div className="w-px h-6 bg-slate-200 mx-2"></div>
+          <button onClick={onLeave} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Leave">
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto py-6 px-8 bg-white custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50 custom-scrollbar relative">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
-            <div className="w-16 h-16 mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-              <span className="text-2xl">👋</span>
+          <div className="h-full flex flex-col items-center justify-center text-slate-400">
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-100">
+              <MessageSquare className="w-6 h-6 text-slate-300" />
             </div>
-            <p className="text-sm font-medium text-gray-600">Welcome to the chat!</p>
-            <p className="text-xs mt-1">Share the code {roomId} to invite others.</p>
+            <p className="text-sm font-medium">No messages yet. Say hello!</p>
           </div>
         ) : (
           messages.map((msg, index) => {

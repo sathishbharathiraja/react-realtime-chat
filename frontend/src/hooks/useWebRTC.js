@@ -71,9 +71,23 @@ export function useWebRTC(socket, user) {
     };
   }, [socket, callState]);
 
-  const initStream = async (video = true) => {
+  const initStream = async (requestVideo = true) => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+      // Always request both video and audio so we can toggle video on later mid-call
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      
+      // If the user requested an audio-only call, immediately disable the video track
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        if (!requestVideo) {
+          videoTrack.enabled = false;
+          setIsVideoMuted(true);
+        } else {
+          videoTrack.enabled = true;
+          setIsVideoMuted(false);
+        }
+      }
+
       setLocalStream(stream);
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;

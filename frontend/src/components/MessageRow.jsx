@@ -1,6 +1,5 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { clsx } from 'clsx';
 import { Check, CheckCheck } from 'lucide-react';
 
 export default function MessageRow({ message, isMe, showSender, currentUserId, roomUsers }) {
@@ -9,64 +8,49 @@ export default function MessageRow({ message, isMe, showSender, currentUserId, r
   const senderName = senderObj.displayName || message.senderName || message.sender || 'Unknown';
   const firstLetter = senderName.charAt(0).toUpperCase();
 
-  // Calculate read status for 'isMe' messages
-  let readStatus = null; // null | 'sent' | 'read'
-  if (isMe) {
-    readStatus = 'sent';
-    // If readBy contains someone other than the sender
-    if (message.readBy && message.readBy.some(id => id !== currentUserId)) {
-      readStatus = 'read';
-    }
-  }
+  const isReadByAll = message.readBy?.length >= roomUsers.length && roomUsers.length > 0;
+  const isReadBySome = message.readBy?.length > 1;
 
   return (
-    <div className="w-full flex px-5 py-1 hover:bg-gray-100/60 transition-colors group">
-      {/* Left Column: Avatar */}
-      <div className="w-10 flex-shrink-0 mr-3">
-        {showSender ? (
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-gray-700 font-bold text-sm bg-gray-200 shadow-sm border border-gray-300">
-            {firstLetter}
-          </div>
-        ) : (
-          // Indent consecutive messages
-          <div className="w-9 h-9"></div>
-        )}
-      </div>
+    <div className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'} group mb-4`}>
+      {!isMe && showSender && (
+        <div 
+          className="w-8 h-8 rounded-full bg-indigo-50 flex-shrink-0 flex items-center justify-center text-indigo-600 text-xs font-bold mr-3 mt-auto shadow-sm border border-slate-100"
+          title={senderName}
+        >
+          {firstLetter}
+        </div>
+      )}
+      {(!showSender && !isMe) && <div className="w-11"></div>}
 
-      {/* Right Column: Message Content */}
-      <div className="flex-1 min-w-0 py-0.5">
-        {showSender && (
-          <div className="flex items-baseline gap-2 mb-0.5">
-            <span className="text-[14px] font-bold text-gray-900">{senderName}</span>
-            <span className="text-[12px] text-gray-500 font-medium">{formattedTime}</span>
-          </div>
+      <div className={`flex flex-col max-w-[70%] ${isMe ? 'items-end' : 'items-start'}`}>
+        {!isMe && showSender && (
+          <span className="text-[11px] font-semibold text-slate-500 mb-1 ml-1">{senderName}</span>
         )}
         
-        {message.mediaUrl && (
-          <div className="mb-2 mt-1">
-            {message.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
-              <img src={message.mediaUrl} alt="attachment" className="max-w-sm rounded border border-gray-200 shadow-sm object-cover" />
-            ) : (
-              <a href={message.mediaUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded text-[#464eb8] hover:underline transition-colors border border-gray-200 text-sm font-medium shadow-sm">
-                View Attachment
-              </a>
-            )}
-          </div>
-        )}
+        <div 
+          className={`relative px-4 py-2.5 rounded-2xl shadow-sm ${
+            isMe 
+              ? 'bg-indigo-600 text-white rounded-br-sm' 
+              : 'bg-white text-slate-800 border border-slate-100 rounded-bl-sm mnc-shadow'
+          }`}
+        >
+          {message.mediaUrl && (
+            <img 
+              src={message.mediaUrl} 
+              alt="attachment" 
+              className="max-w-full rounded-xl mb-2 cursor-pointer hover:opacity-95 transition-opacity border border-black/5" 
+            />
+          )}
+          <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words font-medium">{message.text}</p>
+        </div>
 
-        <div className="flex items-start justify-between gap-4 mt-0.5">
-          <div className="text-[14px] text-gray-800 leading-relaxed whitespace-pre-wrap break-words">
-            {message.text}
-          </div>
-          
+        <div className={`flex items-center gap-1.5 mt-1.5 px-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMe ? 'justify-end' : 'justify-start'}`}>
+          <span className="text-[10px] font-medium text-slate-400">{formattedTime}</span>
           {isMe && (
-            <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ml-2 mt-1" title={readStatus === 'read' ? 'Seen' : 'Sent'}>
-              {readStatus === 'read' ? (
-                <CheckCheck className="w-4 h-4 text-[#464eb8]" />
-              ) : (
-                <Check className="w-4 h-4 text-gray-400" />
-              )}
-            </div>
+            <span className={isReadByAll ? 'text-indigo-500' : 'text-slate-400'}>
+              {isReadByAll ? <CheckCheck className="w-3.5 h-3.5" /> : (isReadBySome ? <CheckCheck className="w-3.5 h-3.5 opacity-50" /> : <Check className="w-3.5 h-3.5" />)}
+            </span>
           )}
         </div>
       </div>
