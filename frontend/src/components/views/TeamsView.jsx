@@ -184,6 +184,8 @@ export default function TeamsView({ conversations, socket, token, onConversation
     );
   }
 
+  if (!activeConv) return null;
+
   return (
     <div className="flex-1 flex h-full bg-white overflow-hidden">
       
