@@ -55,7 +55,7 @@ export default function SettingsView({ user, onLogout, token }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col p-8 bg-slate-50/50">
+    <div className="flex-1 flex flex-col p-4 sm:p-8 bg-slate-50/50">
       <div className="max-w-3xl w-full mx-auto">
         
         <div className="flex items-center gap-6 mb-10 pb-8 border-b border-slate-200">

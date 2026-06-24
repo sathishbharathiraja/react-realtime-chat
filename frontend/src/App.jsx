@@ -92,11 +92,11 @@ function MainLayout({ user, token, socket, isConnected }) {
                           !location.pathname.includes(`/chat/${rtc.activeConversationId}`);
 
   return (
-    <div className="h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F4F5F7]">
-      <div className="flex w-full h-full max-w-[1600px] overflow-hidden bg-white rounded-3xl mnc-shadow border border-slate-200/60">
+    <div className="h-screen w-full flex flex-col md:flex-row items-center justify-center p-0 sm:p-6 bg-[#F4F5F7]">
+      <div className="flex w-full h-full max-w-[1600px] overflow-hidden bg-white rounded-none sm:rounded-3xl mnc-shadow border-0 sm:border border-slate-200/60 relative">
         
-        {/* Sidebar Navigation */}
-        <div className="w-[72px] bg-white border-r border-slate-100 flex flex-col items-center py-6 gap-6 z-10">
+        {/* Desktop Sidebar Navigation */}
+        <div className="hidden md:flex w-[72px] bg-white border-r border-slate-100 flex-col items-center py-6 gap-6 z-10">
           
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
             {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
@@ -141,7 +141,7 @@ function MainLayout({ user, token, socket, isConnected }) {
         )}
 
         {/* Main Content Area */}
-        <div className="flex-1 bg-white flex flex-col min-w-0 relative">
+        <div className="flex-1 bg-white flex flex-col min-w-0 relative pb-[64px] md:pb-0">
           
           <IncomingCallModal 
             incomingCall={rtc.incomingCall} 
@@ -174,6 +174,19 @@ function MainLayout({ user, token, socket, isConnected }) {
             <Route path="/settings" element={<SettingsView user={user} onLogout={handleLogout} token={token} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
+        </div>
+
+        {/* Mobile Bottom Navigation */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 h-[64px] bg-white border-t border-slate-200 flex items-center justify-around z-[100] px-2 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+          <NavItem icon={<Bell className="w-6 h-6" />} label="Activity" to="/activity" />
+          <NavItem icon={<MessageSquare className="w-6 h-6" />} label="Chat" to="/chat" />
+          <NavItem icon={<Users className="w-6 h-6" />} label="Teams" to="/teams" />
+          <NavItem icon={<Calendar className="w-6 h-6" />} label="Calendar" to="/calendar" />
+          <NavItem icon={<Phone className="w-6 h-6" />} label="Calls" to="/calls" />
+          <Link to="/settings" className="relative group flex flex-col items-center justify-center py-2.5 rounded-xl transition-all text-slate-400 hover:text-slate-700">
+            <Settings className="w-6 h-6" />
+            <span className="text-[10px] mt-1.5 font-medium">Settings</span>
+          </Link>
         </div>
       </div>
     </div>
@@ -358,9 +371,9 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
   };
 
   return (
-    <div className="flex h-full w-full bg-white rounded-[24px]">
+    <div className="flex h-full w-full bg-white md:rounded-[24px]">
       {/* Sidebar List (WhatsApp Style) */}
-      <div className="w-80 bg-white border-r border-slate-100 flex flex-col flex-shrink-0 z-10">
+      <div className={`${conversationId ? 'hidden md:flex' : 'flex'} w-full md:w-80 bg-white border-r border-slate-100 flex-col flex-shrink-0 z-10`}>
         <div className="p-6 pb-4">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Chats</h2>
@@ -473,7 +486,7 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
       </div>
 
       {/* Main Detail Area */}
-      <div className="flex-1 bg-slate-50/50 flex flex-col relative rounded-r-[24px] overflow-hidden">
+      <div className={`${!conversationId ? 'hidden md:flex' : 'flex'} flex-1 bg-slate-50/50 flex-col relative md:rounded-r-[24px] overflow-hidden`}>
         {conversationId ? (
           <ChatView 
             socket={socket} 

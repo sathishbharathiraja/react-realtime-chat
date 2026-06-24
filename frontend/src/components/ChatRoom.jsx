@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle, Search, Loader2, Info, ClipboardList } from 'lucide-react';
+import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle, Search, Loader2, Info, ClipboardList, ChevronLeft } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
+import { useNavigate } from 'react-router-dom';
 import MessageRow from './MessageRow';
 import AssignTaskModal from './AssignTaskModal';
 
@@ -12,6 +13,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isAssignTaskOpen, setIsAssignTaskOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Group Info Panel State
   const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -218,10 +220,16 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
       <div className="flex flex-col h-full flex-1 min-w-0 bg-white">
         {/* Header */}
         <div 
-          className={`h-[72px] bg-white/80 backdrop-blur-md flex items-center justify-between px-6 border-b border-slate-100 z-10 sticky top-0 shrink-0 ${isGroup ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
+          className={`h-[72px] bg-white/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 border-b border-slate-100 z-10 sticky top-0 shrink-0 ${isGroup ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
           onClick={() => isGroup && setShowGroupInfo(!showGroupInfo)}
         >
-          <div className="flex items-center gap-6 flex-1 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
+            <button 
+              onClick={(e) => { e.stopPropagation(); navigate('/chat'); }}
+              className="md:hidden p-2 -ml-2 text-slate-400 hover:text-slate-600 rounded-xl"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div className="w-10 h-10 rounded-full bg-indigo-50 flex shrink-0 items-center justify-center text-indigo-600 font-bold text-sm shadow-sm">
                 {(title || roomId).charAt(0).toUpperCase()}
@@ -368,9 +376,11 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
     </div>
 
       {/* Right Sidebar: WhatsApp Style Group Info Panel */}
-      {showGroupInfo && isGroup && (
-        <div className="w-80 bg-white flex-shrink-0 flex flex-col h-full border-l border-slate-100 z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.02)]">
-          <div className="h-[72px] border-b border-slate-100 flex items-center px-6 shrink-0 bg-slate-50/50">
+      {isGroup && showGroupInfo && (
+        <>
+          <div className="md:hidden fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" onClick={() => setShowGroupInfo(false)} />
+          <div className="absolute right-0 inset-y-0 z-50 w-full max-w-[320px] bg-white flex flex-col h-full border-l border-slate-100 shadow-2xl md:relative md:z-10 md:shadow-[-10px_0_30px_rgba(0,0,0,0.02)] animate-slide-up">
+            <div className="h-[72px] border-b border-slate-100 flex items-center px-6 shrink-0 bg-slate-50/50">
             <h3 className="font-bold text-slate-800 flex items-center gap-2">
               <Info className="w-5 h-5 text-indigo-500" /> Group Info
             </h3>
@@ -454,6 +464,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
 
           </div>
         </div>
+        </>
       )}
 
       {/* Assign Task Modal */}

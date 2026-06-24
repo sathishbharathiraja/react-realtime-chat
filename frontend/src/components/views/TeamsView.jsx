@@ -214,7 +214,7 @@ export default function TeamsView({ conversations, socket, token, onConversation
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
           <div className="max-w-2xl mx-auto space-y-8">
             
             {/* Add Member Section */}

@@ -60,9 +60,9 @@ export default function CalendarView({ token }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col p-8 bg-slate-50/50">
+    <div className="flex-1 flex flex-col p-4 sm:p-8 bg-slate-50/50">
       <div className="max-w-4xl w-full mx-auto">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4 sm:gap-0">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-white rounded-2xl shadow-sm text-indigo-600 border border-slate-100">
               <Calendar className="w-8 h-8" />

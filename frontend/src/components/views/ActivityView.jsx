@@ -55,7 +55,7 @@ export default function ActivityView({ token }) {
   if (loading) return <div className="flex-1 flex items-center justify-center bg-slate-50/50"><Loader2 className="w-8 h-8 animate-spin text-indigo-500" /></div>;
 
   return (
-    <div className="flex-1 flex flex-col p-8 bg-slate-50/50 h-full overflow-hidden">
+    <div className="flex-1 flex flex-col p-4 sm:p-8 bg-slate-50/50 h-full overflow-hidden">
       <div className="max-w-3xl w-full mx-auto flex flex-col h-full">
         <div className="mb-8 shrink-0">
           <h2 className="text-3xl font-bold text-slate-800 tracking-tight mb-2">Action Inbox</h2>
