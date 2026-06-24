@@ -19,6 +19,7 @@ function App() {
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [roomUsers, setRoomUsers] = useState([]);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [activeTab, setActiveTab] = useState('Chat');
 
   // Listen to Firebase Auth state
   useEffect(() => {
@@ -142,6 +143,7 @@ function App() {
   const handleJoin = (room) => {
     setRoomId(room);
     socket?.emit('joinRoom', { roomId: room });
+    setActiveTab('Chat');
   };
 
   const handleLeave = () => {
@@ -220,105 +222,159 @@ function App() {
           <div className="flex flex-1 overflow-hidden bg-[#f5f5f5]">
             {/* Primary App Bar */}
             <div className="w-[68px] bg-[#ebebeb] flex flex-col items-center py-4 gap-6 shrink-0 border-r border-gray-200">
-              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
-                <Bell className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-medium">Activity</span>
+              <div onClick={() => setActiveTab('Activity')} className={`flex flex-col items-center gap-1 cursor-pointer group relative ${activeTab === 'Activity' ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`}>
+                {activeTab === 'Activity' && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
+                <Bell className={`w-6 h-6 transition-transform ${activeTab === 'Activity' ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
+                <span className={`text-[10px] ${activeTab === 'Activity' ? 'font-bold' : 'font-medium'}`}>Activity</span>
               </div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer text-[#464eb8] relative">
-                <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>
-                <MessageSquare className="w-6 h-6 fill-[#464eb8]" />
-                <span className="text-[10px] font-bold">Chat</span>
+              <div onClick={() => setActiveTab('Chat')} className={`flex flex-col items-center gap-1 cursor-pointer group relative ${activeTab === 'Chat' ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`}>
+                {activeTab === 'Chat' && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
+                <MessageSquare className={`w-6 h-6 transition-transform ${activeTab === 'Chat' ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
+                <span className={`text-[10px] ${activeTab === 'Chat' ? 'font-bold' : 'font-medium'}`}>Chat</span>
               </div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
-                <Users className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-medium">Teams</span>
+              <div onClick={() => setActiveTab('Teams')} className={`flex flex-col items-center gap-1 cursor-pointer group relative ${activeTab === 'Teams' ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`}>
+                {activeTab === 'Teams' && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
+                <Users className={`w-6 h-6 transition-transform ${activeTab === 'Teams' ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
+                <span className={`text-[10px] ${activeTab === 'Teams' ? 'font-bold' : 'font-medium'}`}>Teams</span>
               </div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
-                <Calendar className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-medium">Calendar</span>
+              <div onClick={() => setActiveTab('Calendar')} className={`flex flex-col items-center gap-1 cursor-pointer group relative ${activeTab === 'Calendar' ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`}>
+                {activeTab === 'Calendar' && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
+                <Calendar className={`w-6 h-6 transition-transform ${activeTab === 'Calendar' ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
+                <span className={`text-[10px] ${activeTab === 'Calendar' ? 'font-bold' : 'font-medium'}`}>Calendar</span>
               </div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
-                <Phone className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-medium">Calls</span>
+              <div onClick={() => setActiveTab('Calls')} className={`flex flex-col items-center gap-1 cursor-pointer group relative ${activeTab === 'Calls' ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`}>
+                {activeTab === 'Calls' && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
+                <Phone className={`w-6 h-6 transition-transform ${activeTab === 'Calls' ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
+                <span className={`text-[10px] ${activeTab === 'Calls' ? 'font-bold' : 'font-medium'}`}>Calls</span>
               </div>
-              <div className="flex flex-col items-center gap-1 cursor-pointer group text-gray-500 hover:text-[#464eb8]">
-                <FileText className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-medium">Files</span>
+              <div onClick={() => setActiveTab('Files')} className={`flex flex-col items-center gap-1 cursor-pointer group relative ${activeTab === 'Files' ? 'text-[#464eb8]' : 'text-gray-500 hover:text-[#464eb8]'}`}>
+                {activeTab === 'Files' && <div className="absolute -left-[20px] top-1 bottom-1 w-1 bg-[#464eb8] rounded-r-md"></div>}
+                <FileText className={`w-6 h-6 transition-transform ${activeTab === 'Files' ? 'fill-[#464eb8]' : 'group-hover:scale-110'}`} />
+                <span className={`text-[10px] ${activeTab === 'Files' ? 'font-bold' : 'font-medium'}`}>Files</span>
               </div>
             </div>
 
-            {/* Secondary Sidebar (Chat List) */}
-            <div className="w-[320px] bg-white flex flex-col shrink-0 border-r border-gray-200 z-10">
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900 tracking-tight">Chat</h2>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <div className="p-3">
-                  <div className="flex items-center justify-between px-2 mb-2">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent</span>
+            {/* Secondary Sidebar and Content Based on Tab */}
+            {activeTab === 'Chat' && (
+              <>
+                {/* Secondary Sidebar (Chat List) */}
+                <div className="w-[320px] bg-white flex flex-col shrink-0 border-r border-gray-200 z-10">
+                  <div className="p-4 border-b border-gray-100 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-gray-900 tracking-tight">Chat</h2>
                   </div>
-                  
-                  {/* Active Chat Item */}
-                  <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-100 cursor-pointer">
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
-                        {roomId.charAt(0).toUpperCase()}
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="p-3">
+                      <div className="flex items-center justify-between px-2 mb-2">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent</span>
                       </div>
-                      <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <span className="text-sm font-semibold text-gray-900 truncate">Room: {roomId}</span>
-                        <span className="text-[11px] text-gray-500">Now</span>
+                      
+                      {/* Active Chat Item */}
+                      <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-100 cursor-pointer">
+                        <div className="relative">
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                            {roomId.charAt(0).toUpperCase()}
+                          </div>
+                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <span className="text-sm font-semibold text-gray-900 truncate">Room: {roomId}</span>
+                            <span className="text-[11px] text-gray-500">Now</span>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">
+                            {messages.length > 0 ? messages[messages.length - 1].text || 'Attachment' : 'Start chatting...'}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 truncate">
-                        {messages.length > 0 ? messages[messages.length - 1].text || 'Attachment' : 'Start chatting...'}
-                      </p>
-                    </div>
-                  </div>
 
-                  {/* Placeholder Inactive Chat */}
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mt-1 opacity-60">
-                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-sm">D</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <span className="text-sm font-semibold text-gray-900 truncate">Design Sync</span>
-                        <span className="text-[11px] text-gray-400">Yesterday</span>
+                      {/* Placeholder Inactive Chat */}
+                      <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mt-1 opacity-60">
+                        <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-700 font-bold text-sm">D</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline mb-0.5">
+                            <span className="text-sm font-semibold text-gray-900 truncate">Design Sync</span>
+                            <span className="text-[11px] text-gray-400">Yesterday</span>
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">Let's review the new mockups.</p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 truncate">Let's review the new mockups.</p>
-                    </div>
-                  </div>
-                  
-                  {/* Placeholder Inactive Chat */}
-                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer mt-1 opacity-60">
-                    <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm">E</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline mb-0.5">
-                        <span className="text-sm font-semibold text-gray-900 truncate">Engineering Team</span>
-                        <span className="text-[11px] text-gray-400">Tuesday</span>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate">Deployment successful!</p>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Main Chat Area */}
-            <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0">
-              <ChatRoom
-                roomId={roomId}
-                user={user}
-                messages={messages}
-                typingUsers={Array.from(typingUsers)}
-                roomUsers={roomUsers}
-                onSendMessage={handleSendMessage}
-                onTyping={handleTyping}
-                onMarkAsRead={handleMarkAsRead}
-                isConnected={isConnected}
-                onLeave={handleLeave}
-              />
-            </div>
+                {/* Main Chat Area */}
+                <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0">
+                  <ChatRoom
+                    roomId={roomId}
+                    user={user}
+                    messages={messages}
+                    typingUsers={Array.from(typingUsers)}
+                    roomUsers={roomUsers}
+                    onSendMessage={handleSendMessage}
+                    onTyping={handleTyping}
+                    onMarkAsRead={handleMarkAsRead}
+                    isConnected={isConnected}
+                    onLeave={handleLeave}
+                  />
+                </div>
+              </>
+            )}
+
+            {activeTab === 'Teams' && (
+              <div className="flex-1 flex flex-col items-center justify-center bg-white">
+                <div className="w-full max-w-md">
+                  <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Your Teams</h2>
+                  <RoomSelection user={user} onJoin={handleJoin} onLogout={handleLogout} isConnected={isConnected} />
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'Files' && (
+              <div className="flex-1 flex flex-col bg-white overflow-hidden">
+                <div className="p-6 border-b border-gray-200">
+                  <h2 className="text-2xl font-bold text-gray-900">Files in Room: {roomId}</h2>
+                  <p className="text-sm text-gray-500 mt-1">Lightweight preview of all attachments shared.</p>
+                </div>
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {messages.filter(m => m.mediaUrl).length > 0 ? (
+                      messages.filter(m => m.mediaUrl).map((msg, idx) => (
+                        <a key={idx} href={msg.mediaUrl} target="_blank" rel="noreferrer" className="block border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow group relative">
+                          <div className="aspect-square bg-gray-100 flex items-center justify-center relative">
+                            {msg.mediaUrl.match(/\.(jpeg|jpg|gif|png|webp)/i) ? (
+                              <img src={msg.mediaUrl} alt="File" className="w-full h-full object-cover" />
+                            ) : (
+                              <FileText className="w-12 h-12 text-gray-400" />
+                            )}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                          </div>
+                          <div className="p-3 bg-white">
+                            <p className="text-xs font-semibold text-gray-800 truncate">{msg.senderName || 'Unknown User'}</p>
+                            <p className="text-[10px] text-gray-500">{new Date(msg.timestamp).toLocaleDateString()}</p>
+                          </div>
+                        </a>
+                      ))
+                    ) : (
+                      <div className="col-span-full py-10 text-center text-gray-500">
+                        No files have been shared in this room yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {['Activity', 'Calendar', 'Calls'].includes(activeTab) && (
+              <div className="flex-1 flex flex-col items-center justify-center bg-gray-50">
+                <div className="text-gray-400 mb-4">
+                  {activeTab === 'Activity' && <Bell className="w-16 h-16" />}
+                  {activeTab === 'Calendar' && <Calendar className="w-16 h-16" />}
+                  {activeTab === 'Calls' && <Phone className="w-16 h-16" />}
+                </div>
+                <h2 className="text-xl font-bold text-gray-700">{activeTab}</h2>
+                <p className="text-sm text-gray-500 mt-2">This module is part of the premium lightweight package.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
