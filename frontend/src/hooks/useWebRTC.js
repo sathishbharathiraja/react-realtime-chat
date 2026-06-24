@@ -9,74 +9,22 @@ const ICE_SERVERS = {
 
 export function useWebRTC(socket, user) {
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-  const [callState, setCallState] = useState('idle'); // 'idle', 'ringing', 'calling', 'connected'
-  const [incomingCall, setIncomingCall] = useState(null); // { from, name, signal, conversationId }
+  const [remoteStreams, setRemoteStreams] = useState({}); // { socketId: MediaStream }
+  const [callState, setCallState] = useState('idle'); // 'idle', 'connected'
   const [activeConversationId, setActiveConversationId] = useState(null);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(false);
 
-  const peerRef = useRef(null);
-  const localVideoRef = useRef(null);
-  const remoteVideoRef = useRef(null);
+  // We no longer have 'incomingCall' state because in a Huddle, you just join without ringing.
+  const [incomingCall, setIncomingCall] = useState(null);
 
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleIncomingCall = (data) => {
-      // Ignore if we are already in a call
-      if (callState !== 'idle') return;
-      setIncomingCall(data);
-      setCallState('ringing');
-    };
-
-    const handleCallAccepted = async ({ signal }) => {
-      setCallState('connected');
-      if (peerRef.current) {
-        await peerRef.current.setRemoteDescription(new RTCSessionDescription(signal));
-      }
-    };
-
-    const handleCallRejected = () => {
-      cleanupCall();
-      alert('Call was rejected');
-    };
-
-    const handleCallEnded = () => {
-      cleanupCall();
-    };
-
-    const handleIceCandidate = async ({ candidate }) => {
-      if (peerRef.current && candidate) {
-        try {
-          await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-        } catch (e) {
-          console.error('Error adding ICE candidate', e);
-        }
-      }
-    };
-
-    socket.on('incomingCall', handleIncomingCall);
-    socket.on('callAccepted', handleCallAccepted);
-    socket.on('callRejected', handleCallRejected);
-    socket.on('callEnded', handleCallEnded);
-    socket.on('iceCandidate', handleIceCandidate);
-
-    return () => {
-      socket.off('incomingCall', handleIncomingCall);
-      socket.off('callAccepted', handleCallAccepted);
-      socket.off('callRejected', handleCallRejected);
-      socket.off('callEnded', handleCallEnded);
-      socket.off('iceCandidate', handleIceCandidate);
-    };
-  }, [socket, callState]);
+  const peersRef = useRef({}); // { socketId: RTCPeerConnection }
+  const localVideoRef = useRef(null); // Ref for local video
+  const localStreamRef = useRef(null); // to keep track inside effects
 
   const initStream = async (requestVideo = true) => {
     try {
-      // Always request both video and audio so we can toggle video on later mid-call
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      
-      // If the user requested an audio-only call, immediately disable the video track
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         if (!requestVideo) {
@@ -89,6 +37,8 @@ export function useWebRTC(socket, user) {
       }
 
       setLocalStream(stream);
+      localStreamRef.current = stream;
+      
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
       }
@@ -100,36 +50,44 @@ export function useWebRTC(socket, user) {
     }
   };
 
-  const createPeer = (stream, conversationId, isInitiator) => {
+  const removePeer = (socketId) => {
+    if (peersRef.current[socketId]) {
+      peersRef.current[socketId].close();
+      delete peersRef.current[socketId];
+    }
+    setRemoteStreams(prev => {
+      const newStreams = { ...prev };
+      delete newStreams[socketId];
+      return newStreams;
+    });
+  };
+
+  const createPeer = (socketId, stream, isInitiator, conversationId) => {
     const peer = new RTCPeerConnection(ICE_SERVERS);
-    peerRef.current = peer;
+    peersRef.current[socketId] = peer;
 
-    // Add local tracks to peer
-    stream.getTracks().forEach(track => peer.addTrack(track, stream));
+    if (stream) {
+      stream.getTracks().forEach(track => peer.addTrack(track, stream));
+    }
 
-    // Listen for remote tracks
     peer.ontrack = (event) => {
       const [remoteMediaStream] = event.streams;
-      setRemoteStream(remoteMediaStream);
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteMediaStream;
-      }
+      setRemoteStreams(prev => ({ ...prev, [socketId]: remoteMediaStream }));
     };
 
-    // Send ICE candidates to signaling server
     peer.onicecandidate = (event) => {
       if (event.candidate) {
         socket.emit('iceCandidate', { 
+          to: socketId, 
           candidate: event.candidate, 
           conversationId 
         });
       }
     };
 
-    // Handle connection state changes
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
-        cleanupCall();
+        removePeer(socketId);
       }
     };
 
@@ -142,83 +100,42 @@ export function useWebRTC(socket, user) {
     if (!stream) return;
 
     setActiveConversationId(conversationId);
-    setCallState('calling');
-
-    const peer = createPeer(stream, conversationId, true);
-
-    // Create Offer
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
-
-    socket.emit('callUser', {
-      conversationId,
-      signalData: offer,
-      from: user.id,
-      name: user.displayName
-    });
-  };
-
-  const answerCall = async () => {
-    if (!incomingCall || !socket) return;
-    const stream = await initStream(true); // Default to video on answer for simplicity, user can toggle
-    if (!stream) return;
-
-    const { conversationId, signal } = incomingCall;
-    setActiveConversationId(conversationId);
     setCallState('connected');
-
-    const peer = createPeer(stream, conversationId, false);
-
-    // Set Remote Offer
-    await peer.setRemoteDescription(new RTCSessionDescription(signal));
-
-    // Create Answer
-    const answer = await peer.createAnswer();
-    await peer.setLocalDescription(answer);
-
-    socket.emit('answerCall', {
-      signal: answer,
-      conversationId
-    });
-
-    setIncomingCall(null);
+    
+    socket.emit('joinHuddle', { conversationId });
   };
 
-  const rejectCall = () => {
-    if (incomingCall && socket) {
-      socket.emit('rejectCall', { conversationId: incomingCall.conversationId });
-    }
-    setIncomingCall(null);
-    setCallState('idle');
-  };
+  const answerCall = async () => {};
+  const rejectCall = () => {};
 
   const endCall = () => {
     if (activeConversationId && socket) {
-      socket.emit('endCall', { conversationId: activeConversationId });
+      socket.emit('leaveHuddle', { conversationId: activeConversationId });
     }
     cleanupCall();
   };
 
   const cleanupCall = () => {
-    if (peerRef.current) {
-      peerRef.current.close();
-      peerRef.current = null;
-    }
-    if (localStream) {
-      localStream.getTracks().forEach(track => track.stop());
+    Object.keys(peersRef.current).forEach(socketId => {
+      removePeer(socketId);
+    });
+    peersRef.current = {};
+    
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
     }
     setLocalStream(null);
-    setRemoteStream(null);
+    localStreamRef.current = null;
+    setRemoteStreams({});
     setCallState('idle');
-    setIncomingCall(null);
     setActiveConversationId(null);
     setIsAudioMuted(false);
     setIsVideoMuted(false);
   };
 
   const toggleAudio = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
+    if (localStreamRef.current) {
+      const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsAudioMuted(!audioTrack.enabled);
@@ -227,8 +144,8 @@ export function useWebRTC(socket, user) {
   };
 
   const toggleVideo = () => {
-    if (localStream) {
-      const videoTrack = localStream.getVideoTracks()[0];
+    if (localStreamRef.current) {
+      const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoMuted(!videoTrack.enabled);
@@ -244,35 +161,94 @@ export function useWebRTC(socket, user) {
       });
       const newAudioTrack = newStream.getAudioTracks()[0];
       
-      if (localStream) {
-        const oldAudioTrack = localStream.getAudioTracks()[0];
+      if (localStreamRef.current) {
+        const oldAudioTrack = localStreamRef.current.getAudioTracks()[0];
         if (oldAudioTrack) {
-          localStream.removeTrack(oldAudioTrack);
+          localStreamRef.current.removeTrack(oldAudioTrack);
           oldAudioTrack.stop();
         }
-        localStream.addTrack(newAudioTrack);
+        localStreamRef.current.addTrack(newAudioTrack);
         newAudioTrack.enabled = !isAudioMuted;
       }
       
-      if (peerRef.current) {
-        const sender = peerRef.current.getSenders().find(s => s.track && s.track.kind === 'audio');
+      Object.values(peersRef.current).forEach(async (peer) => {
+        const sender = peer.getSenders().find(s => s.track && s.track.kind === 'audio');
         if (sender) {
           await sender.replaceTrack(newAudioTrack);
         }
-      }
+      });
     } catch (err) {
       console.error('Failed to change audio input', err);
       alert('Could not switch microphone.');
     }
   };
 
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleHuddlePeers = async (existingPeers) => {
+      for (const peerData of existingPeers) {
+        const peer = createPeer(peerData.socketId, localStreamRef.current, true, activeConversationId);
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+        socket.emit('callUser', {
+          userToCall: peerData.socketId,
+          signalData: offer,
+          from: socket.id,
+          name: user.displayName,
+          conversationId: activeConversationId
+        });
+      }
+    };
+
+    const handleIncomingCall = async ({ signal, from, name, conversationId }) => {
+      const peer = createPeer(from, localStreamRef.current, false, conversationId);
+      await peer.setRemoteDescription(new RTCSessionDescription(signal));
+      const answer = await peer.createAnswer();
+      await peer.setLocalDescription(answer);
+      socket.emit('answerCall', { to: from, signal: answer, conversationId });
+    };
+
+    const handleCallAccepted = async ({ signal, from }) => {
+      const peer = peersRef.current[from];
+      if (peer) {
+        await peer.setRemoteDescription(new RTCSessionDescription(signal));
+      }
+    };
+
+    const handleIceCandidate = async ({ candidate, from }) => {
+      const peer = peersRef.current[from];
+      if (peer && candidate) {
+        try { await peer.addIceCandidate(new RTCIceCandidate(candidate)); } 
+        catch(e) { console.error(e); }
+      }
+    };
+
+    const handleUserLeft = ({ socketId }) => {
+      removePeer(socketId);
+    };
+
+    socket.on('huddlePeers', handleHuddlePeers);
+    socket.on('incomingCall', handleIncomingCall);
+    socket.on('callAccepted', handleCallAccepted);
+    socket.on('iceCandidate', handleIceCandidate);
+    socket.on('userLeftHuddle', handleUserLeft);
+
+    return () => {
+      socket.off('huddlePeers', handleHuddlePeers);
+      socket.off('incomingCall', handleIncomingCall);
+      socket.off('callAccepted', handleCallAccepted);
+      socket.off('iceCandidate', handleIceCandidate);
+      socket.off('userLeftHuddle', handleUserLeft);
+    };
+  }, [socket, activeConversationId, user.displayName]);
+
   return {
     callState,
     incomingCall,
     localStream,
-    remoteStream,
+    remoteStreams,
     localVideoRef,
-    remoteVideoRef,
     isAudioMuted,
     isVideoMuted,
     activeConversationId,

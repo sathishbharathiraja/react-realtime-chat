@@ -421,56 +421,70 @@ io.on('connection', async (socket) => {
 
   socket.on('joinHuddle', ({ conversationId }) => {
     if (!huddles[conversationId]) huddles[conversationId] = [];
-    const alreadyIn = huddles[conversationId].find(u => u._id.toString() === socket.user._id.toString());
-    if (!alreadyIn) {
-      huddles[conversationId].push({
-        _id: socket.user._id,
-        displayName: socket.user.displayName,
-        avatarUrl: socket.user.avatarUrl
-      });
-      io.emit('huddlesList', huddles); // Broadcast to all for global dashboard updates
-    }
+    
+    const newUser = {
+      _id: socket.user._id,
+      socketId: socket.id,
+      displayName: socket.user.displayName,
+      avatarUrl: socket.user.avatarUrl
+    };
+
+    huddles[conversationId].push(newUser);
+    io.emit('huddlesList', huddles); // Broadcast to all for global dashboard updates
+    
     socket.join(`huddle_${conversationId}`);
+
+    // Tell the new user who is already in the huddle so they can initiate P2P calls
+    const existingPeers = huddles[conversationId].filter(u => u.socketId !== socket.id);
+    socket.emit('huddlePeers', existingPeers);
   });
 
   socket.on('leaveHuddle', ({ conversationId }) => {
     if (huddles[conversationId]) {
-      huddles[conversationId] = huddles[conversationId].filter(u => u._id.toString() !== socket.user._id.toString());
+      huddles[conversationId] = huddles[conversationId].filter(u => u.socketId !== socket.id);
       if (huddles[conversationId].length === 0) delete huddles[conversationId];
       io.emit('huddlesList', huddles);
     }
     socket.leave(`huddle_${conversationId}`);
+    
+    // Notify others in the huddle that this socket left so they can clean up the peer connection
+    socket.to(`huddle_${conversationId}`).emit('userLeftHuddle', { socketId: socket.id });
   });
 
-  // --- WebRTC Signaling ---
+  // --- WebRTC Signaling (Targeted Mesh Routing) ---
   socket.on('callUser', ({ userToCall, signalData, from, name, conversationId }) => {
-    // We can emit directly to the conversation room. All participants in the room will receive it.
-    socket.to(conversationId).emit('incomingCall', { 
+    // userToCall is the target's socket.id. Send specifically to them.
+    io.to(userToCall).emit('incomingCall', { 
       signal: signalData, 
-      from, 
+      from, // from is caller's socket.id
       name, 
-      conversationId 
+      conversationId,
+      userId: socket.user._id
     });
   });
 
-  socket.on('answerCall', ({ signal, conversationId }) => {
-    socket.to(conversationId).emit('callAccepted', { signal });
+  socket.on('answerCall', ({ to, signal, conversationId }) => {
+    // to is the caller's socket.id
+    io.to(to).emit('callAccepted', { signal, from: socket.id });
   });
 
-  socket.on('rejectCall', ({ conversationId }) => {
-    socket.to(conversationId).emit('callRejected');
-  });
-
-  socket.on('iceCandidate', ({ candidate, conversationId }) => {
-    socket.to(conversationId).emit('iceCandidate', { candidate });
-  });
-
-  socket.on('endCall', ({ conversationId }) => {
-    socket.to(conversationId).emit('callEnded');
+  socket.on('iceCandidate', ({ to, candidate, conversationId }) => {
+    io.to(to).emit('iceCandidate', { candidate, from: socket.id });
   });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
+    // Clean up any huddles this user was in
+    for (const conversationId in huddles) {
+      const wasInHuddle = huddles[conversationId].some(u => u.socketId === socket.id);
+      if (wasInHuddle) {
+        huddles[conversationId] = huddles[conversationId].filter(u => u.socketId !== socket.id);
+        if (huddles[conversationId].length === 0) delete huddles[conversationId];
+        io.emit('huddlesList', huddles);
+        socket.to(`huddle_${conversationId}`).emit('userLeftHuddle', { socketId: socket.id });
+      }
+    }
+  });
   });
 });
 

@@ -4,9 +4,8 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings, Headphones } from 'lu
 export default function ActiveCall({ 
   callState, 
   localStream,
-  remoteStream,
+  remoteStreams = {},
   localVideoRef, 
-  remoteVideoRef, 
   isAudioMuted, 
   isVideoMuted, 
   onToggleAudio, 
@@ -40,11 +39,15 @@ export default function ActiveCall({
   const handleOutputChange = async (e) => {
     const deviceId = e.target.value;
     setSelectedOutput(deviceId);
-    if (remoteVideoRef.current && typeof remoteVideoRef.current.setSinkId === 'function') {
-      try {
-        await remoteVideoRef.current.setSinkId(deviceId);
-      } catch (err) {
-        console.error('Failed to set audio output', err);
+    // Setting audio output sink on all remote videos
+    const videoElements = document.querySelectorAll('.remote-video');
+    for (const videoEl of videoElements) {
+      if (typeof videoEl.setSinkId === 'function') {
+        try {
+          await videoEl.setSinkId(deviceId);
+        } catch (err) {
+          console.error('Failed to set audio output', err);
+        }
       }
     }
   };
@@ -59,48 +62,84 @@ export default function ActiveCall({
 
   if (callState === 'idle' || callState === 'ringing') return null;
 
+  const remotePeerIds = Object.keys(remoteStreams);
+  const totalParticipants = remotePeerIds.length + 1; // +1 for local
+
+  // Determine grid layout dynamically based on participant count
+  let gridCols = 'grid-cols-1';
+  let gridRows = 'grid-rows-1';
+  if (totalParticipants === 2) {
+    gridCols = 'grid-cols-2';
+  } else if (totalParticipants <= 4) {
+    gridCols = 'grid-cols-2';
+    gridRows = 'grid-rows-2';
+  } else if (totalParticipants <= 6) {
+    gridCols = 'grid-cols-3';
+    gridRows = 'grid-rows-2';
+  } else {
+    gridCols = 'grid-cols-3';
+    gridRows = 'grid-rows-3';
+  }
+
   return (
-    <div className="absolute inset-0 bg-[#F4F5F7]/95 backdrop-blur-3xl z-50 flex flex-col items-center justify-center overflow-hidden rounded-[24px]">
+    <div className="absolute inset-0 bg-[#1A1C23]/95 backdrop-blur-3xl z-50 flex flex-col items-center justify-center p-8">
       
-      {/* Remote Video Container */}
-      <div className="relative w-full h-full max-w-5xl max-h-[80vh] bg-white rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.06)] overflow-hidden border border-slate-100 flex items-center justify-center">
-        {callState === 'calling' ? (
-          <div className="text-slate-400 text-xl font-medium animate-pulse">Connecting...</div>
-        ) : (
+      {/* Remote Video Grid Container */}
+      <div className={`w-full max-w-7xl h-[85vh] grid gap-4 ${gridCols} ${gridRows}`}>
+        
+        {/* Local Video Component */}
+        <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl flex items-center justify-center group">
           <video 
             ref={(node) => {
-              if (remoteVideoRef) remoteVideoRef.current = node;
-              if (node && remoteStream && node.srcObject !== remoteStream) {
-                node.srcObject = remoteStream;
+              if (localVideoRef) localVideoRef.current = node;
+              if (node && localStream && node.srcObject !== localStream) {
+                node.srcObject = localStream;
               }
             }} 
             autoPlay 
             playsInline 
-            className="w-full h-full object-cover"
+            muted 
+            className={`w-full h-full object-cover ${isVideoMuted ? 'hidden' : 'block'} scale-x-[-1]`}
           />
-        )}
-      </div>
+          {isVideoMuted && (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800">
+              <div className="w-20 h-20 rounded-full bg-slate-700 flex items-center justify-center mb-3">
+                <VideoOff className="w-8 h-8 text-slate-400" />
+              </div>
+              <span className="text-white font-medium">You (Camera Off)</span>
+            </div>
+          )}
+          <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md text-white text-sm px-3 py-1.5 rounded-lg font-medium shadow-sm">
+            You
+          </div>
+        </div>
 
-      {/* Local Video PIP (Picture-in-Picture) */}
-      <div className="absolute top-8 right-8 w-56 aspect-video bg-white rounded-2xl overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.1)] border-4 border-white z-10">
-        <video 
-          ref={(node) => {
-            if (localVideoRef) localVideoRef.current = node;
-            if (node && localStream && node.srcObject !== localStream) {
-              node.srcObject = localStream;
-            }
-          }} 
-          autoPlay 
-          playsInline 
-          muted 
-          className={`w-full h-full object-cover ${isVideoMuted ? 'hidden' : 'block'} scale-x-[-1]`}
-        />
-        {isVideoMuted && (
-          <div className="w-full h-full flex items-center justify-center bg-slate-100">
-            <VideoOff className="w-8 h-8 text-slate-400" />
+        {/* Remote Peers Component */}
+        {remotePeerIds.map((peerId) => (
+          <div key={peerId} className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl flex items-center justify-center">
+            <video 
+              ref={(node) => {
+                if (node && remoteStreams[peerId] && node.srcObject !== remoteStreams[peerId]) {
+                  node.srcObject = remoteStreams[peerId];
+                }
+              }} 
+              autoPlay 
+              playsInline 
+              className="remote-video w-full h-full object-cover"
+            />
+          </div>
+        ))}
+        
+        {/* Waiting State */}
+        {callState === 'calling' && remotePeerIds.length === 0 && (
+          <div className="relative rounded-2xl overflow-hidden bg-slate-800/50 border border-slate-700 flex flex-col items-center justify-center">
+            <div className="text-white text-xl font-medium animate-pulse mb-2">Waiting for others to join...</div>
+            <p className="text-slate-400 text-sm">You are the only one in the call right now.</p>
           </div>
         )}
       </div>
+
+
 
       {/* Call Controls Bar */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/80 backdrop-blur-xl px-6 py-4 rounded-full border border-slate-200/50 shadow-[0_20px_40px_rgba(0,0,0,0.08)] z-20">

@@ -112,9 +112,8 @@ function MainLayout({ user, token, socket, isConnected }) {
           <ActiveCall 
             callState={rtc.callState}
             localStream={rtc.localStream}
-            remoteStream={rtc.remoteStream}
+            remoteStreams={rtc.remoteStreams}
             localVideoRef={rtc.localVideoRef}
-            remoteVideoRef={rtc.remoteVideoRef}
             isAudioMuted={rtc.isAudioMuted}
             isVideoMuted={rtc.isVideoMuted}
             onToggleAudio={rtc.toggleAudio}
