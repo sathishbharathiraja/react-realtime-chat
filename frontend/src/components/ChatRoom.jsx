@@ -148,20 +148,20 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
       
       {/* Header */}
       <div className="h-[72px] bg-white/80 backdrop-blur-md flex items-center justify-between px-6 border-b border-slate-100 z-10 sticky top-0 shrink-0">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-sm shadow-sm">
+        <div className="flex items-center gap-6 flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-indigo-50 flex shrink-0 items-center justify-center text-indigo-600 font-bold text-sm shadow-sm">
               {(title || roomId).charAt(0).toUpperCase()}
             </div>
-            <div>
-              <span className="font-bold text-[15px] text-slate-800 tracking-tight">{title || `Room: ${roomId}`}</span>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
-                <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                <span>{isConnected ? 'Connected' : 'Reconnecting...'}</span>
+            <div className="flex-1 min-w-0">
+              <span className="font-bold text-[15px] text-slate-800 tracking-tight truncate block">{title || `Room: ${roomId}`}</span>
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium truncate">
+                <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                <span className="truncate">{isConnected ? 'Connected' : 'Reconnecting...'}</span>
                 {roomUsers.length > 2 && (
                   <>
-                    <span className="text-slate-300">•</span>
-                    <span>{roomUsers.length} Members</span>
+                    <span className="text-slate-300 shrink-0">•</span>
+                    <span className="truncate">{roomUsers.length} Members</span>
                   </>
                 )}
               </div>
@@ -169,7 +169,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 ml-4">
           <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
             <button 
               onClick={() => handleCallClick(true)}
