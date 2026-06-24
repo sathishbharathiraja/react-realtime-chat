@@ -140,7 +140,7 @@ function MainLayout({ user, token, socket, isConnected }) {
   );
 }
 
-function ChatView({ socket, user, isConnected, conversations, onStartCall, conversationId }) {
+function ChatView({ socket, user, isConnected, conversations, token, onStartCall, conversationId, onConversationUpdated }) {
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
   
@@ -236,11 +236,14 @@ function ChatView({ socket, user, isConnected, conversations, onStartCall, conve
       messages={messages}
       typingUsers={Array.from(typingUsers)}
       roomUsers={roomUsers}
+      conversation={currentConv}
+      token={token}
       onSendMessage={handleSendMessage}
       onTyping={handleTyping}
       onMarkAsRead={handleMarkAsRead}
       onStartCall={onStartCall}
       isConnected={isConnected}
+      onConversationUpdated={onConversationUpdated}
       onLeave={() => {}} // Disabled for persistent chats
     />
   );
@@ -250,6 +253,8 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
   const { conversationId } = useParams();
   const [search, setSearch] = useState('');
   const [results, setResults] = useState([]);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [groupName, setGroupName] = useState('');
   const navigate = useNavigate();
 
   const handleSearch = async () => {
@@ -284,6 +289,27 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
     }
   };
 
+  const handleCreateGroup = async (e) => {
+    e?.preventDefault();
+    if (!groupName.trim()) return;
+    try {
+      const res = await fetch(`${backendUrl}/api/conversations/group`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: groupName })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (onConversationCreated) onConversationCreated();
+        setIsCreatingGroup(false);
+        setGroupName('');
+        navigate(`/chat/${data._id}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <div className="flex h-full w-full bg-white rounded-[24px]">
       {/* Sidebar List (WhatsApp Style) */}
@@ -291,19 +317,45 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
         <div className="p-6 pb-4">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Chats</h2>
+            <button 
+              onClick={() => setIsCreatingGroup(!isCreatingGroup)}
+              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-50 rounded-xl transition-colors"
+              title="New Group"
+            >
+              <Users className="w-5 h-5" />
+            </button>
           </div>
           
-          <div className="relative group flex gap-2">
-            <input 
-              type="text" 
-              placeholder="Search directory..." 
-              className="w-full bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl border border-transparent focus:border-indigo-100 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all outline-none text-sm font-medium placeholder:text-slate-400"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <button onClick={handleSearch} className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-medium text-sm shadow-sm">Search</button>
-          </div>
+          {isCreatingGroup ? (
+            <form onSubmit={handleCreateGroup} className="flex gap-2 mb-4">
+              <input 
+                type="text" 
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Group Name..." 
+                className="w-full bg-indigo-50 text-indigo-900 px-4 py-2.5 rounded-xl border border-indigo-100 focus:outline-none font-medium placeholder:text-indigo-300"
+                autoFocus
+              />
+              <button type="submit" className="px-4 bg-indigo-600 text-white rounded-xl font-bold text-sm">Add</button>
+            </form>
+          ) : (
+            <div className="relative group flex gap-2">
+              <input 
+                type="text" 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="Search directory..." 
+                className="w-full bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl border border-transparent focus:border-indigo-100 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all outline-none text-sm font-medium placeholder:text-slate-400"
+              />
+              <button 
+                onClick={handleSearch}
+                className="px-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-4">
@@ -381,8 +433,10 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
             user={user} 
             isConnected={isConnected} 
             conversations={conversations} 
+            token={token}
             onStartCall={onStartCall} 
             conversationId={conversationId} 
+            onConversationUpdated={onConversationCreated}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">

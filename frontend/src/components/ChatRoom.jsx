@@ -1,15 +1,22 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle } from 'lucide-react';
+import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle, Search, Loader2, Info } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
-export default function ChatRoom({ roomId, title, user, messages, typingUsers, roomUsers = [], onSendMessage, onTyping, onMarkAsRead, onStartCall, isConnected, onLeave }) {
+export default function ChatRoom({ roomId, title, user, messages, typingUsers, roomUsers = [], conversation, token, onSendMessage, onTyping, onMarkAsRead, onStartCall, isConnected, onLeave, onConversationUpdated }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
+  // Group Info Panel State
+  const [showGroupInfo, setShowGroupInfo] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const isGroup = conversation?.isGroup;
   
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -25,6 +32,20 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   useEffect(() => {
     scrollToBottom();
   }, [messages, typingUsers]);
+
+  // Handle typing status
+  useEffect(() => {
+    if (inputText) {
+      if (!typingTimeoutRef.current) {
+        onTyping(true);
+      }
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        onTyping(false);
+        typingTimeoutRef.current = null;
+      }, 1000);
+    }
+  }, [inputText, onTyping]);
 
   // Click outside to close emoji picker
   useEffect(() => {
@@ -69,24 +90,31 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   const handleSubmit = (e) => {
     e.preventDefault();
     if (inputText.trim() || uploading) {
-      if (!uploading) {
+      if (!uploading && inputText.trim()) {
         onSendMessage(inputText);
         setInputText('');
       }
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       onTyping(false);
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
     }
   };
 
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files[0];
     if (!file) return;
 
     setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
+    try {
       const response = await fetch(`${backendUrl}/api/upload`, {
         method: 'POST',
         body: formData,
@@ -95,8 +123,6 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
       if (!response.ok) throw new Error('Upload failed');
       
       const data = await response.json();
-
-      // Send message with local upload URL
       onSendMessage(inputText, data.url);
       setInputText('');
     } catch (err) {
@@ -143,31 +169,76 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
     }
   };
 
+  const handleSearchUsers = async (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const res = await fetch(`${backendUrl}/api/users/search?query=${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddMember = async (targetUserId) => {
+    if (!conversation) return;
+    try {
+      const res = await fetch(`${backendUrl}/api/conversations/${conversation._id}/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ targetUserId })
+      });
+      if (res.ok) {
+        setSearchQuery('');
+        setSearchResults([]);
+        if (onConversationUpdated) onConversationUpdated();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <div className="flex flex-col h-full bg-white relative rounded-r-[24px]">
+    <div className="flex h-full w-full bg-white relative rounded-r-[24px] overflow-hidden">
       
-      {/* Header */}
-      <div className="h-[72px] bg-white/80 backdrop-blur-md flex items-center justify-between px-6 border-b border-slate-100 z-10 sticky top-0 shrink-0">
-        <div className="flex items-center gap-6 flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex shrink-0 items-center justify-center text-indigo-600 font-bold text-sm shadow-sm">
-              {(title || roomId).charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="font-bold text-[15px] text-slate-800 tracking-tight truncate block">{title || `Room: ${roomId}`}</span>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium truncate">
-                <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                <span className="truncate">{isConnected ? 'Connected' : 'Reconnecting...'}</span>
-                {roomUsers.length > 2 && (
-                  <>
-                    <span className="text-slate-300 shrink-0">•</span>
-                    <span className="truncate">{roomUsers.length} Members</span>
-                  </>
-                )}
+      {/* Main Chat Column */}
+      <div className="flex flex-col h-full flex-1 min-w-0 bg-white">
+        {/* Header */}
+        <div 
+          className={`h-[72px] bg-white/80 backdrop-blur-md flex items-center justify-between px-6 border-b border-slate-100 z-10 sticky top-0 shrink-0 ${isGroup ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
+          onClick={() => isGroup && setShowGroupInfo(!showGroupInfo)}
+        >
+          <div className="flex items-center gap-6 flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-indigo-50 flex shrink-0 items-center justify-center text-indigo-600 font-bold text-sm shadow-sm">
+                {(title || roomId).charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="font-bold text-[15px] text-slate-800 tracking-tight truncate block">{title || `Room: ${roomId}`}</span>
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium truncate">
+                  <span className={`w-1.5 h-1.5 shrink-0 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                  <span className="truncate">{isConnected ? 'Connected' : 'Reconnecting...'}</span>
+                  {roomUsers.length > 2 && (
+                    <>
+                      <span className="text-slate-300 shrink-0">•</span>
+                      <span className="truncate">{roomUsers.length} Members</span>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
         <div className="flex items-center gap-2 shrink-0 ml-4">
           <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
@@ -287,6 +358,97 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
           </div>
         </form>
       </div>
+    </div>
+
+      {/* Right Sidebar: WhatsApp Style Group Info Panel */}
+      {showGroupInfo && isGroup && (
+        <div className="w-80 bg-white flex-shrink-0 flex flex-col h-full border-l border-slate-100 z-10 shadow-[-10px_0_30px_rgba(0,0,0,0.02)]">
+          <div className="h-[72px] border-b border-slate-100 flex items-center px-6 shrink-0 bg-slate-50/50">
+            <h3 className="font-bold text-slate-800 flex items-center gap-2">
+              <Info className="w-5 h-5 text-indigo-500" /> Group Info
+            </h3>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 bg-white">
+            
+            {/* Add Member Component */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Add Participant</h4>
+              <div className="relative mb-3">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchUsers}
+                  className="w-full bg-slate-50 border border-slate-200 text-slate-900 rounded-xl pl-9 pr-4 py-2.5 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-medium placeholder-slate-400 text-sm"
+                  placeholder="Search to add..."
+                />
+                {isSearching && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <Loader2 className="h-4 w-4 text-indigo-500 animate-spin" />
+                  </div>
+                )}
+              </div>
+              
+              {searchResults.length > 0 && (
+                <div className="border border-slate-100 rounded-xl overflow-hidden bg-white shadow-sm mb-4">
+                  {searchResults.map(u => {
+                    const isAlreadyMember = roomUsers.some(p => p._id === u._id);
+                    return (
+                      <div key={u._id} className="flex items-center justify-between p-2.5 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm shrink-0 text-xs">
+                            {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (u.alias || u.displayName || 'U').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-800 text-xs truncate">{u.alias || u.displayName}</div>
+                            <div className="text-[10px] text-slate-500 truncate">{u.email}</div>
+                          </div>
+                        </div>
+                        {isAlreadyMember ? (
+                          <span className="text-[10px] font-bold text-slate-400 px-2 shrink-0">Joined</span>
+                        ) : (
+                          <button 
+                            onClick={() => handleAddMember(u._id)}
+                            className="text-[10px] font-bold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1 rounded-full transition-colors shrink-0"
+                          >
+                            Add
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Member List */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Group Members ({roomUsers.length})</h4>
+              <div className="space-y-2">
+                {roomUsers.map(p => (
+                  <div key={p._id} className="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-xl transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold shadow-sm shrink-0 text-sm border border-slate-200">
+                      {p.avatarUrl ? <img src={p.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (p.alias || p.displayName || p.email).charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-800 text-sm truncate flex items-center gap-2">
+                        {p.alias || p.displayName}
+                        {p.email === user.email && <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">You</span>}
+                      </div>
+                      <div className="text-xs text-slate-500 font-medium truncate">{p.email}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
