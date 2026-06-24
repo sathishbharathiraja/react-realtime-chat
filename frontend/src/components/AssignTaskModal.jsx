@@ -16,6 +16,13 @@ export default function AssignTaskModal({ isOpen, onClose, onSubmit, roomUsers, 
     e.preventDefault();
     if (!title.trim() || !assignedTo || !dueDate) return;
     
+    // Prevent past dates
+    const selectedDate = new Date(dueDate);
+    if (selectedDate < new Date()) {
+      alert("Due date must be in the future!");
+      return;
+    }
+    
     setLoading(true);
     await onSubmit({ title, description, assignedTo, dueDate });
     setLoading(false);
@@ -80,6 +87,7 @@ export default function AssignTaskModal({ isOpen, onClose, onSubmit, roomUsers, 
             <input 
               type="datetime-local" 
               required
+              min={new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
