@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, NavLink, useParams, Link, useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText, Phone, Settings, LogOut } from 'lucide-react';
+import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText, Phone, Settings, LogOut, CheckCircle, X } from 'lucide-react';
 import JoinScreen from './components/JoinScreen';
 import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
@@ -22,6 +22,7 @@ const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 function MainLayout({ user, token, socket, isConnected }) {
   const [conversations, setConversations] = useState([]);
+  const [toast, setToast] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const rtc = useWebRTC(socket, user);
@@ -45,6 +46,20 @@ function MainLayout({ user, token, socket, isConnected }) {
   useEffect(() => {
     fetchConversations();
   }, [token, socket]);
+
+  useEffect(() => {
+    if (!socket) return;
+    
+    const handleNotification = (data) => {
+      // Play a small sound if needed, or just show toast
+      playMessageSound();
+      setToast({ title: data.title, body: data.body });
+      setTimeout(() => setToast(null), 5000);
+    };
+
+    socket.on('notification', handleNotification);
+    return () => socket.off('notification', handleNotification);
+  }, [socket]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -108,6 +123,22 @@ function MainLayout({ user, token, socket, isConnected }) {
             </div>
           </div>
         </div>
+
+        {/* Notification Toast */}
+        {toast && (
+          <div className="fixed top-6 right-6 z-[200] bg-white border border-slate-200 shadow-xl rounded-2xl p-4 w-80 flex items-start gap-3 animate-slide-up">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-sm font-bold text-slate-800">{toast.title}</h4>
+              <p className="text-xs text-slate-500 mt-1">{toast.body}</p>
+            </div>
+            <button onClick={() => setToast(null)} className="text-slate-400 hover:text-slate-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Main Content Area */}
         <div className="flex-1 bg-white flex flex-col min-w-0 relative">

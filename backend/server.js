@@ -327,15 +327,28 @@ app.post('/api/tasks', verifyToken, async (req, res) => {
   }
 });
 
+// Update task status
 app.patch('/api/tasks/:id/status', verifyToken, async (req, res) => {
   try {
-    const { status } = req.body;
-    const task = await Task.findOneAndUpdate(
-      { _id: req.params.id, assignedTo: req.user._id },
-      { status },
-      { new: true }
-    );
-    if (!task) return res.status(404).json({ error: 'Task not found or not assigned to you' });
+    const task = await Task.findById(req.params.id).populate('assignedTo', 'displayName').populate('assignedBy', 'displayName');
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
+    // Validate permissions: Only the assignee or the assigner can update it
+    if (task.assignedTo._id.toString() !== req.user._id.toString() && task.assignedBy._id.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Unauthorized to update this task' });
+    }
+
+    task.status = req.body.status;
+    await task.save();
+
+    // If it was marked as completed by the assignee, notify the assigner
+    if (task.status === 'completed' && req.user._id.toString() !== task.assignedBy._id.toString()) {
+      io.to(task.assignedBy._id.toString()).emit('notification', {
+        title: 'Task Completed',
+        body: `${task.assignedTo.displayName} has completed the task: "${task.title}"`
+      });
+    }
+
     res.json(task);
   } catch (err) {
     console.error('Failed to update task status:', err);
@@ -361,6 +374,7 @@ app.get('/api/calendar', verifyToken, async (req, res) => {
 
     // Map incoming tasks
     const incomingEvents = incomingTasks.map(task => {
+      const dateStr = new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeStr = new Date(task.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       return {
         id: task._id.toString(),
@@ -368,7 +382,7 @@ app.get('/api/calendar', verifyToken, async (req, res) => {
         direction: 'incoming',
         title: task.title,
         description: task.description,
-        time: `Due at ${timeStr}`,
+        time: `${dateStr} at ${timeStr}`,
         assigner: task.assignedBy?.displayName || 'Someone',
         dueDate: task.dueDate
       };
@@ -376,6 +390,7 @@ app.get('/api/calendar', verifyToken, async (req, res) => {
 
     // Map outgoing tasks
     const outgoingEvents = outgoingTasks.map(task => {
+      const dateStr = new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       const timeStr = new Date(task.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       return {
         id: task._id.toString(),
@@ -383,7 +398,7 @@ app.get('/api/calendar', verifyToken, async (req, res) => {
         direction: 'outgoing',
         title: task.title,
         description: task.description,
-        time: `Due at ${timeStr}`,
+        time: `${dateStr} at ${timeStr}`,
         assignee: task.assignedTo?.displayName || 'Someone',
         dueDate: task.dueDate
       };
@@ -432,11 +447,14 @@ io.use(async (socket, next) => {
 });
 
 io.on('connection', async (socket) => {
-  console.log(`User connected: ${socket.id}, Email: ${socket.user.email}`);
+  console.log(`User connected: ${socket.user.displayName} (${socket.id})`);
 
-  // Auto-subscribe to all user's conversations
-  const conversations = await Conversation.find({ participants: socket.user._id });
-  conversations.forEach(conv => {
+  // Join a personal room for direct notifications
+  socket.join(socket.user._id.toString());
+
+  // Join all user's conversations automatically
+  const userConvs = await Conversation.find({ participants: socket.user._id });
+  userConvs.forEach(conv => {
     socket.join(conv._id.toString());
   });
 
