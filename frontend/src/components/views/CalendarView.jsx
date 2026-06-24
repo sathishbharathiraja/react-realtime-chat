@@ -103,21 +103,21 @@ export default function CalendarView({ token }) {
                       {event.description && <p className="text-sm text-slate-600 mb-2">{event.description}</p>}
                       <div className="flex items-center gap-2 text-sm font-medium text-slate-500">
                         <User className="w-4 h-4 text-slate-400" />
-                        Assigned by {event.assigner}
+                        {event.direction === 'outgoing' 
+                          ? `Assigned to ${event.assignee}` 
+                          : `Assigned by ${event.assigner}`}
                       </div>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
                       <div className="flex -space-x-2">
-                        {event.attendees?.map((att, i) => (
-                          <div key={i} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600" title={att}>
-                            {att.charAt(0)}
+                        {event.attendees?.map((a, i) => (
+                          <div key={i} className="w-6 h-6 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-slate-600">
+                            {a[0]}
                           </div>
                         ))}
                       </div>
-                      <span className="text-sm font-medium text-slate-500 ml-2">
-                        {event.attendees?.length || 0} Attendees
-                      </span>
+                      <span className="text-sm text-slate-500 font-medium">{event.attendees?.length || 0} Attendees</span>
                     </div>
                   )}
                 </div>
@@ -125,10 +125,10 @@ export default function CalendarView({ token }) {
                 {event.type === 'task' ? (
                   <button 
                     onClick={() => handleCompleteTask(event.id)}
-                    className="px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:scale-105 active:scale-95"
+                    className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors font-semibold"
                   >
-                    <CheckCircle className="w-4 h-4" />
-                    Mark Complete
+                    <CheckCircle className="w-5 h-5" />
+                    {event.direction === 'outgoing' ? 'Mark Done (Manager)' : 'Complete Task'}
                   </button>
                 ) : (
                   <a 

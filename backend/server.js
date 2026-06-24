@@ -346,18 +346,26 @@ app.patch('/api/tasks/:id/status', verifyToken, async (req, res) => {
 // Calendar (Simulated Integration + MongoDB Tasks)
 app.get('/api/calendar', verifyToken, async (req, res) => {
   try {
-    // 1. Fetch tasks assigned to the user that are NOT completed
-    const tasks = await Task.find({ 
+    // 1. Fetch tasks assigned TO the user that are NOT completed
+    const incomingTasks = await Task.find({ 
       assignedTo: req.user._id,
       status: 'pending'
     }).populate('assignedBy', 'displayName email');
 
-    // Map tasks to the calendar event format
-    const taskEvents = tasks.map(task => {
+    // 2. Fetch tasks assigned BY the user TO someone else that are NOT completed
+    const outgoingTasks = await Task.find({
+      assignedBy: req.user._id,
+      assignedTo: { $ne: req.user._id },
+      status: 'pending'
+    }).populate('assignedTo', 'displayName email');
+
+    // Map incoming tasks
+    const incomingEvents = incomingTasks.map(task => {
       const timeStr = new Date(task.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
       return {
         id: task._id.toString(),
         type: 'task',
+        direction: 'incoming',
         title: task.title,
         description: task.description,
         time: `Due at ${timeStr}`,
@@ -366,14 +374,22 @@ app.get('/api/calendar', verifyToken, async (req, res) => {
       };
     });
 
-    // 2. Simulated Google Calendar meetings
-    const mockMeetings = [
-      { id: 1, type: 'meeting', title: 'Weekly Sync', time: '10:00 AM - 11:00 AM', link: 'https://meet.google.com/abc', platform: 'meet', attendees: ['Sathish', 'Sarah'] },
-      { id: 2, type: 'meeting', title: 'Client Pitch', time: '1:00 PM - 2:00 PM', link: 'https://zoom.us/j/123', platform: 'zoom', attendees: ['Sathish', 'David'] },
-      { id: 3, type: 'meeting', title: '1:1 with Manager', time: '4:00 PM - 4:30 PM', link: 'https://meet.google.com/xyz', platform: 'meet', attendees: ['Sathish', 'Manager'] }
-    ];
+    // Map outgoing tasks
+    const outgoingEvents = outgoingTasks.map(task => {
+      const timeStr = new Date(task.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return {
+        id: task._id.toString(),
+        type: 'task',
+        direction: 'outgoing',
+        title: task.title,
+        description: task.description,
+        time: `Due at ${timeStr}`,
+        assignee: task.assignedTo?.displayName || 'Someone',
+        dueDate: task.dueDate
+      };
+    });
 
-    res.json([...mockMeetings, ...taskEvents]);
+    res.json([...incomingEvents, ...outgoingEvents]);
   } catch (err) {
     console.error('Failed to fetch calendar data:', err);
     res.status(500).json({ error: 'Failed to fetch calendar data' });
