@@ -5,7 +5,8 @@ import { Check, CheckCheck } from 'lucide-react';
 
 export default function MessageRow({ message, isMe, showSender, currentUserId, roomUsers }) {
   const formattedTime = format(new Date(message.timestamp), 'HH:mm');
-  const senderName = message.senderName || message.sender || 'Unknown';
+  const senderObj = typeof message.senderId === 'object' ? message.senderId : {};
+  const senderName = senderObj.displayName || message.senderName || message.sender || 'Unknown';
   const firstLetter = senderName.charAt(0).toUpperCase();
 
   // Calculate read status for 'isMe' messages

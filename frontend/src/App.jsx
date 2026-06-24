@@ -169,7 +169,7 @@ function MainLayout({ user, token, socket, isConnected }) {
         <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0">
           <Routes>
             <Route path="/chat" element={<div className="flex-1 flex items-center justify-center text-gray-500">Select a chat to start messaging</div>} />
-            <Route path="/chat/:conversationId" element={<ChatView socket={socket} user={user} isConnected={isConnected} />} />
+            <Route path="/chat/:conversationId" element={<ChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} />} />
             <Route path="/teams" element={<TeamsView user={user} token={token} />} />
             <Route path="/activity" element={<PlaceholderView icon={<Bell className="w-16 h-16" />} title="Activity" />} />
             <Route path="/calendar" element={<PlaceholderView icon={<Calendar className="w-16 h-16" />} title="Calendar" />} />
@@ -184,11 +184,15 @@ function MainLayout({ user, token, socket, isConnected }) {
   );
 }
 
-function ChatView({ socket, user, isConnected }) {
+function ChatView({ socket, user, isConnected, conversations }) {
   const { conversationId } = useParams();
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
-  const [roomUsers, setRoomUsers] = useState([]);
+  
+  const currentConv = conversations?.find(c => c._id === conversationId);
+  const roomUsers = currentConv ? currentConv.participants : [];
+  const otherParticipant = roomUsers.find(p => p.email !== user.email);
+  const title = currentConv?.isGroup ? currentConv.name : (otherParticipant?.displayName || 'Unknown');
 
   useEffect(() => {
     if (!socket || !conversationId) return;
@@ -271,7 +275,8 @@ function ChatView({ socket, user, isConnected }) {
 
   return (
     <ChatRoom
-      roomId={conversationId} // Using roomId prop for ChatRoom component compatibility
+      roomId={conversationId}
+      title={title}
       user={user}
       messages={messages}
       typingUsers={Array.from(typingUsers)}

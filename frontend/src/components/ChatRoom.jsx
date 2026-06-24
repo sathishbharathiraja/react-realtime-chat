@@ -4,7 +4,7 @@ import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
-export default function ChatRoom({ roomId, user, messages, typingUsers, roomUsers = [], onSendMessage, onTyping, onMarkAsRead, isConnected, onLeave }) {
+export default function ChatRoom({ roomId, title, user, messages, typingUsers, roomUsers = [], onSendMessage, onTyping, onMarkAsRead, isConnected, onLeave }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -106,10 +106,10 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
-              {roomId.charAt(0).toUpperCase()}
+              {(title || roomId).charAt(0).toUpperCase()}
             </div>
             <div>
-              <span className="font-bold text-[15px] text-gray-900 tracking-tight">Room: {roomId}</span>
+              <span className="font-bold text-[15px] text-gray-900 tracking-tight">{title || `Room: ${roomId}`}</span>
               <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium">
                 <span>Chat</span>
                 <span>•</span>
@@ -157,9 +157,9 @@ export default function ChatRoom({ roomId, user, messages, typingUsers, roomUser
           </div>
         ) : (
           messages.map((msg, index) => {
-            const isMe = msg.senderId === user.id;
+            const isMe = msg.senderId?._id === user.id || msg.senderId === user.id;
             const prevMsg = index > 0 ? messages[index - 1] : null;
-            const isConsecutive = prevMsg && prevMsg.senderId === msg.senderId && (new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime() < 3 * 60 * 1000);
+            const isConsecutive = prevMsg && (prevMsg.senderId?._id || prevMsg.senderId) === (msg.senderId?._id || msg.senderId) && (new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime() < 3 * 60 * 1000);
 
             return (
               <div key={msg.id} data-id={msg.id} ref={el => { if (el && observerRef.current && !isMe && (!msg.readBy || !msg.readBy.includes(user.id))) observerRef.current.observe(el); }} className={!isConsecutive && index > 0 ? 'mt-4' : 'mt-1'}>
