@@ -6,17 +6,21 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
-const { createClient } = require('redis');
-const { createAdapter } = require('@socket.io/redis-adapter');
 const admin = require('firebase-admin');
 const { getAuth } = require('firebase-admin/auth');
 const multer = require('multer');
 
-// Configure Multer for local file uploads
+// Models
+const User = require('./models/User');
+const Conversation = require('./models/Conversation');
+const Message = require('./models/Message');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
 const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
@@ -27,195 +31,170 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Initialize Firebase Admin
+// Firebase
 let firebaseApp;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     firebaseApp = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   } else {
-    // Hardcoded projectId to match frontend config so token verification doesn't fail on audience mismatch
     firebaseApp = admin.initializeApp({ projectId: 'realtime-chat-86476' });
   }
-  console.log('Firebase Admin initialized');
 } catch (err) {
   console.error('Firebase Admin init error:', err);
 }
 
-const Message = require('./models/Message');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Serve static files from the frontend build
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
-
-// Trust proxy (Render, Heroku, etc.) to ensure req.protocol is correctly 'https' instead of 'http'
 app.set('trust proxy', true);
-
-// Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// File Upload Endpoint
+// DB Connection
+const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/corpchat';
+mongoose.connect(mongoUri)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+// API Routes
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
-  res.json({ url: fileUrl });
+  res.json({ url: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` });
+});
+
+// Middleware to verify Firebase token for API
+const verifyToken = async (req, res, next) => {
+  const token = req.headers.authorization?.split('Bearer ')[1];
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const decoded = await getAuth(firebaseApp).verifyIdToken(token);
+    req.user = await User.findOne({ uid: decoded.uid });
+    if (!req.user) return res.status(401).json({ error: 'User not synced' });
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Search Users
+app.get('/api/users/search', verifyToken, async (req, res) => {
+  const { email } = req.query;
+  if (!email) return res.json([]);
+  const users = await User.find({ email: new RegExp(email, 'i'), _id: { $ne: req.user._id } }).limit(10);
+  res.json(users);
+});
+
+// Create/Get Conversation
+app.post('/api/conversations', verifyToken, async (req, res) => {
+  const { targetUserId } = req.body;
+  try {
+    let conv = await Conversation.findOne({
+      isGroup: false,
+      participants: { $all: [req.user._id, targetUserId] }
+    }).populate('participants');
+    
+    if (!conv) {
+      conv = new Conversation({ participants: [req.user._id, targetUserId] });
+      await conv.save();
+      conv = await conv.populate('participants');
+    }
+    res.json(conv);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create conversation' });
+  }
+});
+
+app.get('/api/conversations', verifyToken, async (req, res) => {
+  try {
+    const convs = await Conversation.find({ participants: req.user._id })
+      .populate('participants')
+      .populate('lastMessage')
+      .sort({ updatedAt: -1 });
+    res.json(convs);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch conversations' });
+  }
 });
 
 const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
-const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST'],
-  },
-  pingTimeout: 30000,
-  pingInterval: 10000,
-});
-
-// Database State Flags
-let isMongoConnected = false;
-let isRedisConnected = false;
-
-// Fallback in-memory store with JSON file backup if MongoDB is not provided
-const HISTORY_FILE = path.join(__dirname, 'history.json');
-let fallbackMessages = [];
-
-try {
-  if (fs.existsSync(HISTORY_FILE)) {
-    const data = fs.readFileSync(HISTORY_FILE, 'utf8');
-    fallbackMessages = JSON.parse(data);
-  }
-} catch (err) {
-  console.error('Error loading history.json:', err);
-}
-
-const saveHistoryBackup = () => {
-  fs.writeFile(HISTORY_FILE, JSON.stringify(fallbackMessages), (err) => {
-    if (err) console.error('Failed to write history backup:', err);
-  });
-};
-
-// Redis setup (Optional)
-if (process.env.REDIS_URL) {
-  const pubClient = createClient({ url: process.env.REDIS_URL });
-  const subClient = pubClient.duplicate();
-
-  Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
-    io.adapter(createAdapter(pubClient, subClient));
-    isRedisConnected = true;
-    console.log('Redis adapter connected');
-  }).catch(err => console.error('Redis connection error (skipping Redis):', err.message));
-} else {
-  console.log('No REDIS_URL provided. Running Socket.io on single node.');
-}
-
-// MongoDB connection (Optional)
-if (process.env.MONGO_URI) {
-  mongoose.connect(process.env.MONGO_URI)
-    .then(() => {
-      isMongoConnected = true;
-      console.log('MongoDB connected');
-    })
-    .catch(err => console.error('MongoDB connection error (using in-memory fallback):', err.message));
-} else {
-  console.log('No MONGO_URI provided. Using in-memory array for messages.');
-}
-
-// Middleware for Firebase Authentication
 io.use(async (socket, next) => {
   const token = socket.handshake.auth?.token;
-  if (!token) {
-    return next(new Error('Authentication error: Token missing'));
-  }
+  if (!token) return next(new Error('Authentication error: Token missing'));
 
   try {
     const decodedToken = await getAuth(firebaseApp).verifyIdToken(token);
-    socket.user = { 
-      userId: decodedToken.uid, 
-      email: decodedToken.email, 
-      displayName: decodedToken.name || decodedToken.email.split('@')[0] 
-    };
+    
+    // Sync user to MongoDB
+    let user = await User.findOne({ uid: decodedToken.uid });
+    if (!user) {
+      user = new User({
+        uid: decodedToken.uid,
+        email: decodedToken.email,
+        displayName: decodedToken.name || decodedToken.email.split('@')[0],
+        avatarUrl: decodedToken.picture || ''
+      });
+      await user.save();
+    } else {
+      user.lastSeen = new Date();
+      await user.save();
+    }
+
+    socket.user = user;
     next();
   } catch (error) {
-    console.error('Firebase token verification failed:', error);
     next(new Error('Authentication error: Invalid Firebase token'));
   }
 });
 
-const typingTimeouts = new Map();
-
-// In-memory store for active users per room: { [roomId]: { [userId]: { socketId, displayName } } }
-const activeRooms = {};
-
 io.on('connection', async (socket) => {
-  console.log(`User connected: ${socket.id}, UserID: ${socket.user.userId}`);
+  console.log(`User connected: ${socket.id}, Email: ${socket.user.email}`);
 
-  socket.on('joinRoom', async ({ roomId }) => {
-    const currentRooms = Array.from(socket.rooms);
-    currentRooms.forEach(room => {
-      if (room !== socket.id) socket.leave(room);
-    });
+  // Auto-subscribe to all user's conversations
+  const conversations = await Conversation.find({ participants: socket.user._id });
+  conversations.forEach(conv => {
+    socket.join(conv._id.toString());
+  });
 
-    socket.join(roomId);
-
+  socket.on('getHistory', async ({ conversationId }) => {
     try {
-      let history = [];
-      if (isMongoConnected) {
-        history = await Message.find({ roomId }).sort({ timestamp: -1 }).limit(100);
-        history = history.reverse();
-      } else {
-        history = fallbackMessages.filter(m => m.roomId === roomId).slice(-100);
-      }
-      socket.emit('history', history);
+      let history = await Message.find({ conversationId })
+        .sort({ timestamp: -1 })
+        .limit(100)
+        .populate('senderId', 'displayName avatarUrl email');
+      
+      history = history.reverse();
+      socket.emit('history', { conversationId, messages: history });
     } catch (err) {
       console.error('Error fetching history', err);
     }
-
-    // Add user to activeRooms
-    if (!activeRooms[roomId]) activeRooms[roomId] = {};
-    activeRooms[roomId][socket.user.userId] = {
-      socketId: socket.id,
-      displayName: socket.user.displayName
-    };
-    io.to(roomId).emit('roomUsers', Object.values(activeRooms[roomId]));
   });
 
   socket.on('sendMessage', async (data) => {
-    const { roomId, text, mediaUrl, timestamp, id } = data;
-    if (!roomId || !id) return;
+    const { conversationId, text, mediaUrl, id } = data;
+    if (!conversationId || !id) return;
 
     try {
-      const msgPayload = {
+      const existingMsg = await Message.findOne({ id });
+      if (existingMsg) return;
+
+      const message = new Message({
         id,
-        roomId,
-        senderId: socket.user.userId,
-        senderName: socket.user.displayName,
+        conversationId,
+        senderId: socket.user._id,
         text,
         mediaUrl,
-        timestamp: timestamp || new Date(),
-        readBy: [socket.user.userId],
-      };
+        readBy: [socket.user._id],
+      });
+      await message.save();
 
-      if (isMongoConnected) {
-        const existingMsg = await Message.findOne({ id });
-        if (existingMsg) return; // Idempotency check
+      // Update conversation lastMessage
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: message._id,
+        updatedAt: new Date()
+      });
 
-        const message = new Message(msgPayload);
-        await message.save();
-        io.to(roomId).emit('newMessage', message);
-      } else {
-        // Fallback file-backed logic
-        const existing = fallbackMessages.find(m => m.id === id);
-        if (!existing) {
-          fallbackMessages.push(msgPayload);
-          if (fallbackMessages.length > 5000) fallbackMessages.shift();
-          saveHistoryBackup();
-          io.to(roomId).emit('newMessage', msgPayload);
-        }
-      }
+      const populatedMsg = await message.populate('senderId', 'displayName avatarUrl email');
+      io.to(conversationId).emit('newMessage', populatedMsg);
     } catch (err) {
       console.error('Error saving message:', err);
     }
@@ -223,77 +202,27 @@ io.on('connection', async (socket) => {
 
   socket.on('markAsRead', async ({ messageId }) => {
     try {
-      if (isMongoConnected) {
-        const message = await Message.findOne({ id: messageId });
-        if (message && !message.readBy.includes(socket.user.userId)) {
-          message.readBy.push(socket.user.userId);
-          await message.save();
-          io.to(message.roomId).emit('messageRead', { messageId, readBy: message.readBy });
-        }
-      } else {
-        const message = fallbackMessages.find(m => m.id === messageId);
-        if (message && !message.readBy.includes(socket.user.userId)) {
-          message.readBy.push(socket.user.userId);
-          saveHistoryBackup();
-          io.to(message.roomId).emit('messageRead', { messageId, readBy: message.readBy });
-        }
+      const message = await Message.findOne({ id: messageId });
+      if (message && !message.readBy.includes(socket.user._id)) {
+        message.readBy.push(socket.user._id);
+        await message.save();
+        io.to(message.conversationId.toString()).emit('messageRead', { messageId, readBy: message.readBy });
       }
     } catch (err) {
       console.error('Error marking as read:', err);
     }
   });
 
-  socket.on('typing', ({ roomId }) => {
-    if (!roomId) return;
-    socket.to(roomId).emit('userTyping', { sender: socket.user.displayName });
-
-    const timeoutKey = `${roomId}-${socket.user.userId}`;
-    if (typingTimeouts.has(timeoutKey)) clearTimeout(typingTimeouts.get(timeoutKey));
-
-    const timeout = setTimeout(() => {
-      socket.to(roomId).emit('userStopTyping', { sender: socket.user.displayName });
-      typingTimeouts.delete(timeoutKey);
-    }, 3000);
-    typingTimeouts.set(timeoutKey, timeout);
+  socket.on('typing', ({ conversationId }) => {
+    socket.to(conversationId).emit('userTyping', { sender: socket.user.displayName, conversationId });
   });
 
-  socket.on('stopTyping', ({ roomId }) => {
-    if (!roomId) return;
-    socket.to(roomId).emit('userStopTyping', { sender: socket.user.displayName });
-    
-    const timeoutKey = `${roomId}-${socket.user.userId}`;
-    if (typingTimeouts.has(timeoutKey)) {
-      clearTimeout(typingTimeouts.get(timeoutKey));
-      typingTimeouts.delete(timeoutKey);
-    }
-  });
-
-  socket.on('leaveRoom', ({ roomId }) => {
-    socket.leave(roomId);
-    if (activeRooms[roomId] && activeRooms[roomId][socket.user.userId]) {
-      delete activeRooms[roomId][socket.user.userId];
-      io.to(roomId).emit('roomUsers', Object.values(activeRooms[roomId]));
-    }
+  socket.on('stopTyping', ({ conversationId }) => {
+    socket.to(conversationId).emit('userStopTyping', { sender: socket.user.displayName, conversationId });
   });
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
-    
-    // Clear typing timeouts
-    for (const [key, timeout] of typingTimeouts.entries()) {
-      if (key.endsWith(`-${socket.user.userId}`)) {
-        clearTimeout(timeout);
-        typingTimeouts.delete(key);
-      }
-    }
-
-    // Remove user from all active rooms they were in
-    for (const roomId in activeRooms) {
-      if (activeRooms[roomId][socket.user.userId]) {
-        delete activeRooms[roomId][socket.user.userId];
-        io.to(roomId).emit('roomUsers', Object.values(activeRooms[roomId]));
-      }
-    }
   });
 });
 
@@ -306,5 +235,4 @@ if (require.main === module) {
     console.log(`Server is running on port ${process.env.PORT || 3001}`);
   });
 }
-
 module.exports = { app, server, io };
