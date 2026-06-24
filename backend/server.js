@@ -153,18 +153,20 @@ app.put('/api/conversations/:id/pinboard', verifyToken, async (req, res) => {
 // Settings
 app.get('/api/users/settings', verifyToken, async (req, res) => {
   res.json({
-    quietHours: req.user.quietHours || false,
-    muteAll: req.user.muteAll || false
+    quietHours: req.user.quietHours,
+    muteAll: req.user.muteAll,
+    alias: req.user.alias
   });
 });
 
 app.put('/api/users/settings', verifyToken, async (req, res) => {
   try {
-    const { quietHours, muteAll } = req.body;
-    req.user.quietHours = quietHours;
-    req.user.muteAll = muteAll;
+    const { quietHours, muteAll, alias } = req.body;
+    if (quietHours !== undefined) req.user.quietHours = quietHours;
+    if (muteAll !== undefined) req.user.muteAll = muteAll;
+    if (alias !== undefined) req.user.alias = alias;
     await req.user.save();
-    res.json({ success: true });
+    res.json({ success: true, user: req.user });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update settings' });
   }

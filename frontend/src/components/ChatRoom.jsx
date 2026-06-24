@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle } from 'lucide-react';
+import EmojiPicker from 'emoji-picker-react';
 import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
@@ -8,10 +9,14 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const fileInputRef = useRef(null);
   const observerRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+  const inputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -20,6 +25,17 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   useEffect(() => {
     scrollToBottom();
   }, [messages, typingUsers]);
+
+  // Click outside to close emoji picker
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Intersection Observer for Read Receipts
   useEffect(() => {
@@ -92,10 +108,39 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
     }
   };
 
-  const handleCopyCode = () => {
-    navigator.clipboard.writeText(roomId);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const onEmojiClick = (emojiObject) => {
+    setInputText(prev => prev + emojiObject.emoji);
+  };
+
+  const handleFormatText = () => {
+    const input = inputRef.current;
+    if (!input) return;
+    
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const selectedText = inputText.substring(start, end);
+    
+    if (selectedText) {
+      const before = inputText.substring(0, start);
+      const after = inputText.substring(end);
+      // Toggle bold if already bold, else make bold
+      if (selectedText.startsWith('**') && selectedText.endsWith('**')) {
+        setInputText(before + selectedText.slice(2, -2) + after);
+      } else {
+        setInputText(before + `**${selectedText}**` + after);
+      }
+    } else {
+      setInputText(prev => prev + '**bold text**');
+    }
+    input.focus();
+  };
+
+  const handleCallClick = (isVideo) => {
+    if (onStartCall) {
+      onStartCall(roomId, isVideo);
+    } else {
+      alert('1-to-1 WebRTC Calls module is not fully initialized. Please use the Calls tab for team huddles.');
+    }
   };
 
   return (
@@ -127,14 +172,14 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
             <button 
-              onClick={() => onStartCall(roomId, true)}
+              onClick={() => handleCallClick(true)}
               className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all shadow-sm"
               title="Video Call"
             >
               <Video className="w-4 h-4" />
             </button>
             <button 
-              onClick={() => onStartCall(roomId, false)}
+              onClick={() => handleCallClick(false)}
               className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-md transition-all shadow-sm"
               title="Voice Call"
             >
@@ -159,6 +204,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
           </div>
         ) : (
           messages.map((msg, index) => {
+            // isMe is evaluated inside MessageRow correctly now, but we'll pass a dummy isMe for fallback
             const isMe = msg.senderId?._id === user.id || msg.senderId === user.id;
             const prevMsg = index > 0 ? messages[index - 1] : null;
             const isConsecutive = prevMsg && (prevMsg.senderId?._id || prevMsg.senderId) === (msg.senderId?._id || msg.senderId) && (new Date(msg.timestamp).getTime() - new Date(prevMsg.timestamp).getTime() < 3 * 60 * 1000);
@@ -191,7 +237,12 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
       })()}
 
       {/* Input Area (Teams Style Composer) */}
-      <div className="p-4 bg-white shrink-0">
+      <div className="p-4 bg-white shrink-0 relative">
+        {showEmojiPicker && (
+          <div className="absolute bottom-full left-4 mb-2 z-50" ref={emojiPickerRef}>
+            <EmojiPicker onEmojiClick={onEmojiClick} theme="light" />
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="flex flex-col max-w-6xl mx-auto w-full border border-gray-300 rounded-md shadow-sm focus-within:border-[#464eb8] transition-colors bg-white">
           <input
             type="file"
@@ -201,6 +252,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
             accept="image/*,video/*,application/pdf"
           />
           <textarea
+            ref={inputRef}
             value={inputText}
             onChange={handleInputChange}
             placeholder="Type a new message"
@@ -217,9 +269,9 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
           
           <div className="flex items-center justify-between px-2 py-2 border-t border-gray-100 bg-gray-50/50 rounded-b-md">
             <div className="flex items-center gap-1 text-gray-500">
-              <button type="button" className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Format"><Type className="w-4 h-4" /></button>
+              <button type="button" onClick={handleFormatText} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Format Text (Bold)"><Type className="w-4 h-4" /></button>
               <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Attach file"><Paperclip className="w-4 h-4" /></button>
-              <button type="button" className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Emoji"><Smile className="w-4 h-4" /></button>
+              <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Emoji"><Smile className="w-4 h-4" /></button>
             </div>
             <button
               type="submit"

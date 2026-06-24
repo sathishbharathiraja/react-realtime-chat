@@ -6,6 +6,7 @@ const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 export default function SettingsView({ user, onLogout, token }) {
   const [quietHours, setQuietHours] = useState(false);
   const [muteAll, setMuteAll] = useState(false);
+  const [alias, setAlias] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,6 +18,7 @@ export default function SettingsView({ user, onLogout, token }) {
       .then(data => {
         setQuietHours(data.quietHours || false);
         setMuteAll(data.muteAll || false);
+        setAlias(data.alias || '');
         setLoading(false);
       })
       .catch(err => {
@@ -107,8 +109,28 @@ export default function SettingsView({ user, onLogout, token }) {
 
         </div>
 
-        <h3 className="text-lg font-bold text-slate-800 mb-6">Account</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-6">Account & Profile</h3>
         <div className="space-y-4">
+          <div className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-3">
+            <label className="font-bold text-slate-800">Chat Alias</label>
+            <p className="text-sm text-slate-500 font-medium">Set a custom nickname that will appear above your chat bubbles.</p>
+            <div className="flex gap-3 mt-1">
+              <input 
+                type="text" 
+                value={alias}
+                onChange={(e) => setAlias(e.target.value)}
+                placeholder="e.g. Maverick"
+                className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 font-medium text-slate-700"
+              />
+              <button 
+                onClick={() => updateSetting('alias', alias)}
+                className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+
           <button onClick={onLogout} className="w-full flex items-center justify-between p-5 bg-white hover:bg-red-50 rounded-2xl border border-slate-100 hover:border-red-100 transition-colors group">
             <div className="flex items-center gap-4 text-red-500">
               <LogOut className="w-5 h-5" />
