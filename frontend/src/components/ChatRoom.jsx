@@ -4,7 +4,7 @@ import MessageRow from './MessageRow';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
-export default function ChatRoom({ roomId, title, user, messages, typingUsers, roomUsers = [], onSendMessage, onTyping, onMarkAsRead, isConnected, onLeave }) {
+export default function ChatRoom({ roomId, title, user, messages, typingUsers, roomUsers = [], onSendMessage, onTyping, onMarkAsRead, onStartCall, isConnected, onLeave }) {
   const [inputText, setInputText] = useState('');
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -134,10 +134,10 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
             ))}
           </div>
           
-          <div className="flex items-center gap-3 text-gray-500">
-            <Video className="w-5 h-5 cursor-pointer hover:text-gray-700" />
-            <Phone className="w-4 h-4 cursor-pointer hover:text-gray-700" />
-            <div className="w-px h-5 bg-gray-200 mx-1"></div>
+          <div className="flex items-center gap-4 text-gray-400">
+            <Video className="w-5 h-5 cursor-pointer hover:text-gray-700" onClick={() => onStartCall(roomId, true)} />
+            <Phone className="w-4 h-4 cursor-pointer hover:text-gray-700" onClick={() => onStartCall(roomId, false)} />
+            <div className="w-px h-4 bg-gray-300 mx-1"></div>
             <button onClick={onLeave} className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-red-600 transition-colors" title="Leave">
               <LogOut className="w-4 h-4" />
             </button>

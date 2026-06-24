@@ -5,6 +5,9 @@ import { Search, Bell, MoreHorizontal, MessageSquare, Users, Calendar, FileText,
 import JoinScreen from './components/JoinScreen';
 import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
+import IncomingCallModal from './components/IncomingCallModal';
+import ActiveCall from './components/ActiveCall';
+import { useWebRTC } from './hooks/useWebRTC';
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -13,6 +16,7 @@ const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 function MainLayout({ user, token, socket, isConnected }) {
   const [conversations, setConversations] = useState([]);
   const navigate = useNavigate();
+  const rtc = useWebRTC(socket, user);
 
   const fetchConversations = () => {
     if (!token) return;
@@ -170,10 +174,28 @@ function MainLayout({ user, token, socket, isConnected }) {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0">
+        <div className="flex-1 bg-[#f5f5f5] flex flex-col min-w-0 relative">
+          
+          <IncomingCallModal 
+            incomingCall={rtc.incomingCall} 
+            onAccept={rtc.answerCall} 
+            onReject={rtc.rejectCall} 
+          />
+          
+          <ActiveCall 
+            callState={rtc.callState}
+            localVideoRef={rtc.localVideoRef}
+            remoteVideoRef={rtc.remoteVideoRef}
+            isAudioMuted={rtc.isAudioMuted}
+            isVideoMuted={rtc.isVideoMuted}
+            onToggleAudio={rtc.toggleAudio}
+            onToggleVideo={rtc.toggleVideo}
+            onEndCall={rtc.endCall}
+          />
+
           <Routes>
             <Route path="/chat" element={<div className="flex-1 flex items-center justify-center text-gray-500">Select a chat to start messaging</div>} />
-            <Route path="/chat/:conversationId" element={<ChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} />} />
+            <Route path="/chat/:conversationId" element={<ChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} onStartCall={rtc.startCall} />} />
             <Route path="/teams" element={<TeamsView user={user} token={token} onConversationCreated={fetchConversations} />} />
             <Route path="/activity" element={<PlaceholderView icon={<Bell className="w-16 h-16" />} title="Activity" />} />
             <Route path="/calendar" element={<PlaceholderView icon={<Calendar className="w-16 h-16" />} title="Calendar" />} />
@@ -188,7 +210,7 @@ function MainLayout({ user, token, socket, isConnected }) {
   );
 }
 
-function ChatView({ socket, user, isConnected, conversations }) {
+function ChatView({ socket, user, isConnected, conversations, onStartCall }) {
   const { conversationId } = useParams();
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState(new Set());
@@ -288,6 +310,7 @@ function ChatView({ socket, user, isConnected, conversations }) {
       onSendMessage={handleSendMessage}
       onTyping={handleTyping}
       onMarkAsRead={handleMarkAsRead}
+      onStartCall={onStartCall}
       isConnected={isConnected}
       onLeave={() => {}} // Disabled for persistent chats
     />

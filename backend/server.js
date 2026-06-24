@@ -235,6 +235,33 @@ io.on('connection', async (socket) => {
     socket.to(conversationId).emit('userStopTyping', { sender: socket.user.displayName, conversationId });
   });
 
+  // --- WebRTC Signaling ---
+  socket.on('callUser', ({ userToCall, signalData, from, name, conversationId }) => {
+    // We can emit directly to the conversation room. All participants in the room will receive it.
+    socket.to(conversationId).emit('incomingCall', { 
+      signal: signalData, 
+      from, 
+      name, 
+      conversationId 
+    });
+  });
+
+  socket.on('answerCall', ({ signal, conversationId }) => {
+    socket.to(conversationId).emit('callAccepted', { signal });
+  });
+
+  socket.on('rejectCall', ({ conversationId }) => {
+    socket.to(conversationId).emit('callRejected');
+  });
+
+  socket.on('iceCandidate', ({ candidate, conversationId }) => {
+    socket.to(conversationId).emit('iceCandidate', { candidate });
+  });
+
+  socket.on('endCall', ({ conversationId }) => {
+    socket.to(conversationId).emit('callEnded');
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
   });
