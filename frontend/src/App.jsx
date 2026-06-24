@@ -7,6 +7,12 @@ import ChatRoom from './components/ChatRoom';
 import RoomSelection from './components/RoomSelection';
 import IncomingCallModal from './components/IncomingCallModal';
 import ActiveCall from './components/ActiveCall';
+import ActivityView from './components/views/ActivityView';
+import TeamsView from './components/views/TeamsView';
+import CalendarView from './components/views/CalendarView';
+import CallsView from './components/views/CallsView';
+import FilesView from './components/views/FilesView';
+import SettingsView from './components/views/SettingsView';
 import { useWebRTC } from './hooks/useWebRTC';
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -78,9 +84,9 @@ function MainLayout({ user, token, socket, isConnected }) {
           </div>
 
           <div className="mt-auto flex flex-col gap-4 items-center">
-            <button className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all">
+            <Link to="/settings" className="p-2.5 text-slate-400 hover:bg-slate-50 hover:text-indigo-600 rounded-xl transition-all">
               <Settings className="w-6 h-6" />
-            </button>
+            </Link>
             <button className="p-2.5 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all" onClick={handleLogout} title="Logout">
               <LogOut className="w-6 h-6" />
             </button>
@@ -120,11 +126,11 @@ function MainLayout({ user, token, socket, isConnected }) {
           <Routes>
             <Route path="/chat" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
             <Route path="/chat/:conversationId" element={<UnifiedChatView socket={socket} user={user} isConnected={isConnected} conversations={conversations} token={token} onStartCall={rtc.startCall} onConversationCreated={fetchConversations} />} />
-            <Route path="/teams" element={<Navigate to="/chat" replace />} />
-            <Route path="/activity" element={<PlaceholderView icon={<Bell className="w-16 h-16" />} title="Activity" />} />
-            <Route path="/calendar" element={<PlaceholderView icon={<Calendar className="w-16 h-16" />} title="Calendar" />} />
-            <Route path="/calls" element={<PlaceholderView icon={<Phone className="w-16 h-16" />} title="Calls" />} />
-            <Route path="/files" element={<PlaceholderView icon={<FileText className="w-16 h-16" />} title="Files" />} />
+            <Route path="/teams" element={<TeamsView />} />
+            <Route path="/activity" element={<ActivityView />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/calls" element={<CallsView />} />
+            <Route path="/files" element={<FilesView />} />
             <Route path="/settings" element={<SettingsView user={user} onLogout={handleLogout} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
@@ -392,35 +398,6 @@ function UnifiedChatView({ socket, user, isConnected, token, conversations, onSt
   );
 }
 
-function SettingsView({ user, onLogout }) {
-  return (
-    <div className="flex-1 flex flex-col p-8 bg-white">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">Settings</h2>
-      <div className="max-w-md p-6 border border-gray-200 rounded-lg">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 text-2xl font-bold">
-            {user.displayName?.charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <h3 className="text-lg font-bold">{user.displayName}</h3>
-            <p className="text-gray-500">{user.email}</p>
-          </div>
-        </div>
-        <button onClick={onLogout} className="w-full py-2 bg-red-50 text-red-600 font-semibold rounded border border-red-200 hover:bg-red-100">Sign Out</button>
-      </div>
-    </div>
-  );
-}
-
-function PlaceholderView({ icon, title }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-gray-50">
-      <div className="text-gray-400 mb-4">{icon}</div>
-      <h2 className="text-xl font-bold text-gray-700">{title}</h2>
-      <p className="text-sm text-gray-500 mt-2">This module is part of the premium package.</p>
-    </div>
-  );
-}
 
 export default function App() {
   const [socket, setSocket] = useState(null);
