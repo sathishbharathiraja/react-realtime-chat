@@ -16,6 +16,7 @@ import SettingsView from './components/views/SettingsView';
 import { useWebRTC } from './hooks/useWebRTC';
 import { auth } from './firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { playMessageSound } from './utils/sound';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
@@ -30,13 +31,19 @@ function MainLayout({ user, token, socket, isConnected }) {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => setConversations(Array.isArray(data) ? data : []))
+      .then(data => {
+        const convs = Array.isArray(data) ? data : [];
+        setConversations(convs);
+        if (socket) {
+          convs.forEach(c => socket.emit('joinConversation', { conversationId: c._id }));
+        }
+      })
       .catch(err => console.error(err));
   };
 
   useEffect(() => {
     fetchConversations();
-  }, [token]);
+  }, [token, socket]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -164,6 +171,13 @@ function ChatView({ socket, user, isConnected, conversations, token, onStartCall
       if (newMessage.conversationId === conversationId) {
         setMessages(prev => {
           if (prev.some(m => m.id === newMessage.id)) return prev;
+          
+          // Play sound if message is not from me
+          const senderIdStr = newMessage.senderId?._id ? newMessage.senderId._id.toString() : newMessage.senderId?.toString();
+          if (senderIdStr !== user.uid && senderIdStr !== user._id?.toString()) {
+            playMessageSound();
+          }
+          
           return [...prev, newMessage];
         });
       }

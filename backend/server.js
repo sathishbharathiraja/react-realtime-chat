@@ -348,6 +348,12 @@ io.on('connection', async (socket) => {
     socket.join(conv._id.toString());
   });
 
+  socket.on('joinConversation', ({ conversationId }) => {
+    if (conversationId) {
+      socket.join(conversationId.toString());
+    }
+  });
+
   socket.on('getHistory', async ({ conversationId }) => {
     try {
       let history = await Message.find({ conversationId })

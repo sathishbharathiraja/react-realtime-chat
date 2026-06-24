@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Phone, PhoneOff } from 'lucide-react';
+import { startRingingSound, stopRingingSound } from '../utils/sound';
 
 export default function IncomingCallModal({ incomingCall, onAccept, onReject }) {
+  useEffect(() => {
+    if (incomingCall) {
+      startRingingSound();
+    } else {
+      stopRingingSound();
+    }
+    return () => stopRingingSound();
+  }, [incomingCall]);
+
   if (!incomingCall) return null;
 
   return (
