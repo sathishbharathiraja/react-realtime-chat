@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings, Headphones } from 'lucide-react';
 
 export default function ActiveCall({ 
   callState, 
@@ -11,20 +11,51 @@ export default function ActiveCall({
   isVideoMuted, 
   onToggleAudio, 
   onToggleVideo, 
+  onChangeAudioInput,
   onEndCall 
 }) {
-  // Attach streams dynamically to ensure they render even if the component mounts after initialization
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream, localVideoRef]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [audioInputs, setAudioInputs] = useState([]);
+  const [audioOutputs, setAudioOutputs] = useState([]);
+  const [selectedInput, setSelectedInput] = useState('');
+  const [selectedOutput, setSelectedOutput] = useState('');
 
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+    async function getDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setAudioInputs(devices.filter(d => d.kind === 'audioinput'));
+        setAudioOutputs(devices.filter(d => d.kind === 'audiooutput'));
+      } catch (err) {
+        console.error('Error fetching devices', err);
+      }
     }
-  }, [remoteStream, remoteVideoRef]);
+    if (callState === 'connected' || callState === 'calling') {
+      getDevices();
+      navigator.mediaDevices.addEventListener('devicechange', getDevices);
+      return () => navigator.mediaDevices.removeEventListener('devicechange', getDevices);
+    }
+  }, [callState]);
+
+  const handleOutputChange = async (e) => {
+    const deviceId = e.target.value;
+    setSelectedOutput(deviceId);
+    if (remoteVideoRef.current && typeof remoteVideoRef.current.setSinkId === 'function') {
+      try {
+        await remoteVideoRef.current.setSinkId(deviceId);
+      } catch (err) {
+        console.error('Failed to set audio output', err);
+      }
+    }
+  };
+
+  const handleInputChange = async (e) => {
+    const deviceId = e.target.value;
+    setSelectedInput(deviceId);
+    if (onChangeAudioInput) {
+      await onChangeAudioInput(deviceId);
+    }
+  };
 
   if (callState === 'idle' || callState === 'ringing') return null;
 
@@ -37,7 +68,12 @@ export default function ActiveCall({
           <div className="text-slate-400 text-xl font-medium animate-pulse">Connecting...</div>
         ) : (
           <video 
-            ref={remoteVideoRef} 
+            ref={(node) => {
+              if (remoteVideoRef) remoteVideoRef.current = node;
+              if (node && remoteStream && node.srcObject !== remoteStream) {
+                node.srcObject = remoteStream;
+              }
+            }} 
             autoPlay 
             playsInline 
             className="w-full h-full object-cover"
@@ -48,7 +84,12 @@ export default function ActiveCall({
       {/* Local Video PIP (Picture-in-Picture) */}
       <div className="absolute top-8 right-8 w-56 aspect-video bg-white rounded-2xl overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.1)] border-4 border-white z-10">
         <video 
-          ref={localVideoRef} 
+          ref={(node) => {
+            if (localVideoRef) localVideoRef.current = node;
+            if (node && localStream && node.srcObject !== localStream) {
+              node.srcObject = localStream;
+            }
+          }} 
           autoPlay 
           playsInline 
           muted 
@@ -83,6 +124,61 @@ export default function ActiveCall({
         >
           {isVideoMuted ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
         </button>
+
+        <div className="relative">
+          <button 
+            onClick={() => setShowSettings(!showSettings)}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+              showSettings ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+            }`}
+            title="Audio Settings (Bluetooth)"
+          >
+            <Settings className="w-5 h-5" />
+          </button>
+          
+          {/* Settings Popover */}
+          {showSettings && (
+            <div className="absolute bottom-[calc(100%+16px)] left-1/2 -translate-x-1/2 w-72 bg-white rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-slate-100 p-4 z-50">
+              <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                <Headphones className="w-4 h-4 text-indigo-500" /> Device Settings
+              </h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Microphone (Input)</label>
+                  <select 
+                    value={selectedInput} 
+                    onChange={handleInputChange}
+                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700"
+                  >
+                    <option value="">Default Microphone</option>
+                    {audioInputs.map(device => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Microphone ${device.deviceId.slice(0, 5)}...`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1.5">Speaker (Output)</label>
+                  <select 
+                    value={selectedOutput} 
+                    onChange={handleOutputChange}
+                    className="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all text-slate-700"
+                  >
+                    <option value="">Default Speaker</option>
+                    {audioOutputs.map(device => (
+                      <option key={device.deviceId} value={device.deviceId}>
+                        {device.label || `Speaker ${device.deviceId.slice(0, 5)}...`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="w-px h-8 bg-slate-200 mx-2"></div>
 

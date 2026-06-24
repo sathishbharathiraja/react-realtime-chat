@@ -27,6 +27,9 @@ export default function MessageRow({ message, isMe, showSender, currentUserId, r
         {!isMe && showSender && (
           <span className="text-[11px] font-semibold text-slate-500 mb-1 ml-1">{senderName}</span>
         )}
+        {isMe && showSender && (
+          <span className="text-[11px] font-semibold text-slate-500 mb-1 mr-1">You</span>
+        )}
         
         <div 
           className={`relative px-4 py-2.5 rounded-2xl shadow-sm ${
@@ -54,6 +57,16 @@ export default function MessageRow({ message, isMe, showSender, currentUserId, r
           )}
         </div>
       </div>
+
+      {isMe && showSender && (
+        <div 
+          className="w-8 h-8 rounded-full bg-indigo-100 flex-shrink-0 flex items-center justify-center text-indigo-700 text-xs font-bold ml-3 mt-auto shadow-sm"
+          title="You"
+        >
+          {firstLetter}
+        </div>
+      )}
+      {(showSender && !isMe) && <div className="w-11 hidden"></div> /* placeholder adjusted */}
     </div>
   );
 }

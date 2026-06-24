@@ -113,6 +113,7 @@ function MainLayout({ user, token, socket, isConnected }) {
             isVideoMuted={rtc.isVideoMuted}
             onToggleAudio={rtc.toggleAudio}
             onToggleVideo={rtc.toggleVideo}
+            onChangeAudioInput={rtc.changeAudioInput}
             onEndCall={rtc.endCall}
           />
 
