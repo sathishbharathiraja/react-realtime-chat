@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Pin, Link as LinkIcon, Clock } from 'lucide-react';
-import ChatRoom from '../ChatRoom';
+import { Pin, Link as LinkIcon, Clock, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 export default function TeamsView({ conversations, socket, token }) {
   const [activeConvId, setActiveConvId] = useState(null);
   const [pinBoard, setPinBoard] = useState({ status: 'On Track', links: [], deadlines: [] });
+  const navigate = useNavigate();
 
   const teamConvs = conversations.filter(c => c.isGroup);
 
@@ -64,8 +65,15 @@ export default function TeamsView({ conversations, socket, token }) {
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">{activeConv?.name || 'Project Team'}</h2>
           <p className="text-sm text-slate-500 font-medium">{activeConv?.participants.length} Members</p>
         </div>
-        <div className="flex-1 overflow-hidden relative">
-           <ChatRoom socket={socket} conversation={activeConv} />
+        <div className="flex-1 overflow-hidden relative flex flex-col items-center justify-center bg-slate-50/50">
+           <MessageSquare className="w-12 h-12 text-slate-300 mb-4" />
+           <p className="text-slate-500 font-medium">Chat messaging is managed in the Unified Chat view.</p>
+           <button 
+             onClick={() => navigate(`/chat/${activeConv._id}`)} 
+             className="mt-4 px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+           >
+             Open Full Chat
+           </button>
         </div>
       </div>
 
