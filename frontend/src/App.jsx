@@ -20,7 +20,7 @@ function MainLayout({ user, token, socket, isConnected }) {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => setConversations(data))
+      .then(data => setConversations(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
   }, [token]);
 
