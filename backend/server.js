@@ -15,6 +15,7 @@ const User = require('./models/User');
 const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
 const Activity = require('./models/Activity');
+const Task = require('./models/Task');
 
 const app = express();
 app.use(cors());
@@ -103,6 +104,12 @@ app.get('/api/users/search', verifyToken, async (req, res) => {
       { alias: regex }
     ]
   }).limit(10);
+  res.json(users);
+});
+
+// All Users for global assignment
+app.get('/api/users/all', verifyToken, async (req, res) => {
+  const users = await User.find({ _id: { $ne: req.user._id } });
   res.json(users);
 });
 
@@ -294,14 +301,83 @@ app.delete('/api/activity/:id', verifyToken, async (req, res) => {
   }
 });
 
-// Calendar (Simulated Integration due to OAuth constraints)
-app.get('/api/calendar', verifyToken, (req, res) => {
-  // In a real app, this would use googleapis with req.user's OAuth token
-  res.json([
-    { id: 1, title: 'Weekly Sync', time: '10:00 AM - 11:00 AM', link: 'https://meet.google.com/abc', platform: 'meet', attendees: ['Sathish', 'Sarah'] },
-    { id: 2, title: 'Client Pitch', time: '1:00 PM - 2:00 PM', link: 'https://zoom.us/j/123', platform: 'zoom', attendees: ['Sathish', 'David'] },
-    { id: 3, title: '1:1 with Manager', time: '4:00 PM - 4:30 PM', link: 'https://meet.google.com/xyz', platform: 'meet', attendees: ['Sathish', 'Manager'] }
-  ]);
+// Tasks API
+app.post('/api/tasks', verifyToken, async (req, res) => {
+  try {
+    const { title, description, assignedTo, conversationId, dueDate } = req.body;
+    
+    if (!title || !assignedTo || !dueDate) {
+      return res.status(400).json({ error: 'Title, assignedTo, and dueDate are required' });
+    }
+
+    const task = new Task({
+      title,
+      description,
+      assignedTo,
+      assignedBy: req.user._id,
+      conversationId,
+      dueDate: new Date(dueDate)
+    });
+
+    await task.save();
+    res.json(task);
+  } catch (err) {
+    console.error('Failed to create task:', err);
+    res.status(500).json({ error: 'Failed to create task' });
+  }
+});
+
+app.patch('/api/tasks/:id/status', verifyToken, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const task = await Task.findOneAndUpdate(
+      { _id: req.params.id, assignedTo: req.user._id },
+      { status },
+      { new: true }
+    );
+    if (!task) return res.status(404).json({ error: 'Task not found or not assigned to you' });
+    res.json(task);
+  } catch (err) {
+    console.error('Failed to update task status:', err);
+    res.status(500).json({ error: 'Failed to update task status' });
+  }
+});
+
+// Calendar (Simulated Integration + MongoDB Tasks)
+app.get('/api/calendar', verifyToken, async (req, res) => {
+  try {
+    // 1. Fetch tasks assigned to the user that are NOT completed
+    const tasks = await Task.find({ 
+      assignedTo: req.user._id,
+      status: 'pending'
+    }).populate('assignedBy', 'displayName email');
+
+    // Map tasks to the calendar event format
+    const taskEvents = tasks.map(task => {
+      const timeStr = new Date(task.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      return {
+        id: task._id.toString(),
+        type: 'task',
+        title: task.title,
+        description: task.description,
+        time: `Due at ${timeStr}`,
+        assigner: task.assignedBy?.displayName || 'Someone',
+        dueDate: task.dueDate
+      };
+    });
+
+    // 2. Simulated Google Calendar meetings
+    const mockMeetings = [
+      { id: 1, type: 'meeting', title: 'Weekly Sync', time: '10:00 AM - 11:00 AM', link: 'https://meet.google.com/abc', platform: 'meet', attendees: ['Sathish', 'Sarah'] },
+      { id: 2, type: 'meeting', title: 'Client Pitch', time: '1:00 PM - 2:00 PM', link: 'https://zoom.us/j/123', platform: 'zoom', attendees: ['Sathish', 'David'] },
+      { id: 3, type: 'meeting', title: '1:1 with Manager', time: '4:00 PM - 4:30 PM', link: 'https://meet.google.com/xyz', platform: 'meet', attendees: ['Sathish', 'Manager'] }
+    ];
+
+    res.json([...mockMeetings, ...taskEvents]);
+  } catch (err) {
+    console.error('Failed to fetch calendar data:', err);
+    res.status(500).json({ error: 'Failed to fetch calendar data' });
+  }
 });
 
 const server = http.createServer(app);

@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle, Search, Loader2, Info } from 'lucide-react';
+import { Send, LogOut, Copy, Check, Paperclip, MessageSquare, Video, Phone, Users, Type, Smile, PlusCircle, Search, Loader2, Info, ClipboardList } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 import MessageRow from './MessageRow';
+import AssignTaskModal from './AssignTaskModal';
 
 const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
@@ -10,6 +11,7 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isAssignTaskOpen, setIsAssignTaskOpen] = useState(false);
   
   // Group Info Panel State
   const [showGroupInfo, setShowGroupInfo] = useState(false);
@@ -342,6 +344,11 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
               <button type="button" onClick={handleFormatText} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Format Text (Bold)"><Type className="w-4 h-4" /></button>
               <button type="button" onClick={() => fileInputRef.current?.click()} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Attach file"><Paperclip className="w-4 h-4" /></button>
               <button type="button" onClick={() => setShowEmojiPicker(!showEmojiPicker)} className="p-1.5 hover:bg-gray-200 rounded text-gray-600" title="Emoji"><Smile className="w-4 h-4" /></button>
+              <div className="w-px h-4 bg-gray-300 mx-1"></div>
+              <button type="button" onClick={() => setIsAssignTaskOpen(true)} className="p-1.5 hover:bg-indigo-50 rounded text-indigo-600 flex items-center gap-1 transition-colors" title="Assign Task">
+                <ClipboardList className="w-4 h-4" />
+                <span className="text-xs font-semibold">Assign</span>
+              </button>
             </div>
             <button
               type="submit"
@@ -449,6 +456,36 @@ export default function ChatRoom({ roomId, title, user, messages, typingUsers, r
         </div>
       )}
 
+      {/* Assign Task Modal */}
+      <AssignTaskModal 
+        isOpen={isAssignTaskOpen} 
+        onClose={() => setIsAssignTaskOpen(false)} 
+        roomUsers={roomUsers} 
+        currentUserId={user.id}
+        onSubmit={async (taskData) => {
+          try {
+            const res = await fetch(`${backendUrl}/api/tasks`, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}` 
+              },
+              body: JSON.stringify({ ...taskData, conversationId: id })
+            });
+            if (res.ok) {
+              const assignedUser = roomUsers.find(u => u._id === taskData.assignedTo);
+              // Send an automated message saying a task was assigned
+              socket.emit('sendMessage', {
+                conversationId: id,
+                text: `📝 **Assigned Task:** "${taskData.title}" to @${assignedUser?.displayName || 'user'}`,
+                sender: user.id
+              });
+            }
+          } catch (err) {
+            console.error('Failed to assign task:', err);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -23,6 +23,7 @@ const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
 function MainLayout({ user, token, socket, isConnected }) {
   const [conversations, setConversations] = useState([]);
   const navigate = useNavigate();
+  const location = useLocation();
   const rtc = useWebRTC(socket, user);
 
   const fetchConversations = () => {
@@ -51,8 +52,8 @@ function MainLayout({ user, token, socket, isConnected }) {
   };
 
   function NavItem({ icon, label, to }) {
-    const location = useLocation();
-    const isActive = location.pathname.startsWith(to);
+    const itemLocation = useLocation();
+    const isActive = itemLocation.pathname.startsWith(to);
   
     return (
       <Link 
@@ -70,6 +71,11 @@ function MainLayout({ user, token, socket, isConnected }) {
     );
   }
 
+  // Auto-minimize if we are not on the chat page for the active call
+  const isAutoMinimized = rtc.callState === 'connected' && 
+                          rtc.activeConversationId && 
+                          !location.pathname.includes(`/chat/${rtc.activeConversationId}`);
+
   return (
     <div className="h-screen w-full flex items-center justify-center p-4 sm:p-6 bg-[#F4F5F7]">
       <div className="flex w-full h-full max-w-[1600px] overflow-hidden bg-white rounded-3xl mnc-shadow border border-slate-200/60">
@@ -78,7 +84,7 @@ function MainLayout({ user, token, socket, isConnected }) {
         <div className="w-[72px] bg-white border-r border-slate-100 flex flex-col items-center py-6 gap-6 z-10">
           
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-            C
+            {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
           </div>
 
           <div className="flex flex-col gap-3 mt-4 w-full px-3">
@@ -98,11 +104,7 @@ function MainLayout({ user, token, socket, isConnected }) {
               <LogOut className="w-6 h-6" />
             </button>
             <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm mt-2">
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-slate-600 font-medium">{user?.displayName?.charAt(0)?.toUpperCase()}</span>
-              )}
+              <img src={`https://ui-avatars.com/api/?name=${user?.displayName || 'User'}&background=random`} alt="Avatar" className="w-full h-full object-cover" />
             </div>
           </div>
         </div>
@@ -127,6 +129,7 @@ function MainLayout({ user, token, socket, isConnected }) {
             onToggleVideo={rtc.toggleVideo}
             onChangeAudioInput={rtc.changeAudioInput}
             onEndCall={rtc.endCall}
+            autoMinimize={isAutoMinimized}
           />
 
           <Routes>

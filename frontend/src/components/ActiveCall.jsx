@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings, Headphones } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Settings, Headphones, Minimize2, Maximize2 } from 'lucide-react';
 
 export default function ActiveCall({ 
   callState, 
@@ -11,13 +11,19 @@ export default function ActiveCall({
   onToggleAudio, 
   onToggleVideo, 
   onChangeAudioInput,
-  onEndCall 
+  onEndCall,
+  autoMinimize = false
 }) {
   const [showSettings, setShowSettings] = useState(false);
   const [audioInputs, setAudioInputs] = useState([]);
   const [audioOutputs, setAudioOutputs] = useState([]);
   const [selectedInput, setSelectedInput] = useState('');
   const [selectedOutput, setSelectedOutput] = useState('');
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  useEffect(() => {
+    setIsMinimized(autoMinimize);
+  }, [autoMinimize]);
 
   useEffect(() => {
     async function getDevices() {
@@ -81,11 +87,38 @@ export default function ActiveCall({
     gridRows = 'grid-rows-3';
   }
 
+  const containerClasses = isMinimized 
+    ? "fixed bottom-6 right-6 w-80 h-48 bg-slate-900 z-[9999] rounded-2xl shadow-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all flex items-center justify-center border border-slate-700 group"
+    : "absolute inset-0 bg-[#1A1C23]/95 backdrop-blur-3xl z-50 flex flex-col items-center justify-center p-8";
+
+  const gridContainerClasses = isMinimized
+    ? `w-full h-full grid gap-1 p-1 ${gridCols} ${gridRows}`
+    : `w-full max-w-7xl h-[85vh] grid gap-4 ${gridCols} ${gridRows}`;
+
   return (
-    <div className="absolute inset-0 bg-[#1A1C23]/95 backdrop-blur-3xl z-50 flex flex-col items-center justify-center p-8">
+    <div 
+      className={containerClasses}
+      onClick={isMinimized ? () => setIsMinimized(false) : undefined}
+    >
       
+      {!isMinimized && (
+        <button 
+          onClick={() => setIsMinimized(true)}
+          className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors z-10"
+          title="Minimize Call"
+        >
+          <Minimize2 className="w-5 h-5" />
+        </button>
+      )}
+
+      {isMinimized && (
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity z-20">
+          <Maximize2 className="w-8 h-8 text-white drop-shadow-md" />
+        </div>
+      )}
+
       {/* Remote Video Grid Container */}
-      <div className={`w-full max-w-7xl h-[85vh] grid gap-4 ${gridCols} ${gridRows}`}>
+      <div className={gridContainerClasses}>
         
         {/* Local Video Component */}
         <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl flex items-center justify-center group">
@@ -103,15 +136,17 @@ export default function ActiveCall({
           />
           {isVideoMuted && (
             <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800">
-              <div className="w-20 h-20 rounded-full bg-slate-700 flex items-center justify-center mb-3">
-                <VideoOff className="w-8 h-8 text-slate-400" />
+              <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-slate-700 flex items-center justify-center mb-1 sm:mb-3">
+                <VideoOff className="w-5 h-5 sm:w-8 sm:h-8 text-slate-400" />
               </div>
-              <span className="text-white font-medium">You (Camera Off)</span>
+              {!isMinimized && <span className="text-white font-medium">You (Camera Off)</span>}
             </div>
           )}
-          <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md text-white text-sm px-3 py-1.5 rounded-lg font-medium shadow-sm">
-            You
-          </div>
+          {!isMinimized && (
+            <div className="absolute bottom-4 left-4 bg-black/60 backdrop-blur-md text-white text-sm px-3 py-1.5 rounded-lg font-medium shadow-sm">
+              You
+            </div>
+          )}
         </div>
 
         {/* Remote Peers Component */}
@@ -133,16 +168,15 @@ export default function ActiveCall({
         {/* Waiting State */}
         {callState === 'calling' && remotePeerIds.length === 0 && (
           <div className="relative rounded-2xl overflow-hidden bg-slate-800/50 border border-slate-700 flex flex-col items-center justify-center">
-            <div className="text-white text-xl font-medium animate-pulse mb-2">Waiting for others to join...</div>
-            <p className="text-slate-400 text-sm">You are the only one in the call right now.</p>
+            <div className="text-white text-base sm:text-xl font-medium animate-pulse mb-1 sm:mb-2 text-center px-2">Waiting for others...</div>
+            {!isMinimized && <p className="text-slate-400 text-sm">You are the only one in the call right now.</p>}
           </div>
         )}
       </div>
 
-
-
-      {/* Call Controls Bar */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/80 backdrop-blur-xl px-6 py-4 rounded-full border border-slate-200/50 shadow-[0_20px_40px_rgba(0,0,0,0.08)] z-20">
+      {/* Control Bar (Hidden when minimized) */}
+      {!isMinimized && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-white/80 backdrop-blur-xl px-6 py-4 rounded-full border border-slate-200/50 shadow-[0_20px_40px_rgba(0,0,0,0.08)] z-20">
         
         <button 
           onClick={onToggleAudio}
@@ -229,7 +263,7 @@ export default function ActiveCall({
           <PhoneOff className="w-6 h-6" />
         </button>
       </div>
-
+      )}
     </div>
   );
 }
