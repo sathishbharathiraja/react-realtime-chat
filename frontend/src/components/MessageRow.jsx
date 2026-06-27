@@ -2,6 +2,8 @@ import React from 'react';
 import { format } from 'date-fns';
 import { Check, CheckCheck } from 'lucide-react';
 
+const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
+
 function FormattedText({ text }) {
   if (!text) return null;
   const parts = text.split(/(\*\*.*?\*\*|\_.*?\_)/g);
@@ -61,9 +63,10 @@ export default function MessageRow({ message, isMe, showSender, currentUserId, r
         >
           {message.mediaUrl && (
             <img 
-              src={message.mediaUrl} 
+              src={message.mediaUrl.startsWith('/') ? `${backendUrl}${message.mediaUrl}` : message.mediaUrl} 
               alt="attachment" 
-              className="max-w-full rounded-xl mb-2 cursor-pointer hover:opacity-95 transition-opacity border border-black/5" 
+              className="max-w-[240px] max-h-[240px] rounded-xl object-contain cursor-pointer mb-2 border border-slate-100"
+              loading="lazy"
             />
           )}
           <FormattedText text={message.text} />

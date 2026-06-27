@@ -65,7 +65,8 @@ mongoose.connect(mongoUri)
 // API Routes
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-  res.json({ url: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` });
+  // Return relative path. Frontend will prepend backend URL.
+  res.json({ url: `/uploads/${req.file.filename}` });
 });
 
 const verifyToken = async (req, res, next) => {
@@ -266,7 +267,7 @@ app.get('/api/files', verifyToken, async (req, res) => {
 
     const files = await Message.find({ 
       conversationId: { $in: convIds }, 
-      mediaUrl: { $ne: null } 
+      mediaUrl: { $type: 'string', $ne: '' } 
     })
     .populate('senderId', 'displayName email uid alias')
     .populate('conversationId', 'isGroup name participants')

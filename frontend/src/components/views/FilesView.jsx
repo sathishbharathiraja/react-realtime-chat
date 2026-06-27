@@ -83,22 +83,23 @@ export default function FilesView({ token }) {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredFiles.map(file => {
-                const img = isImage(file.mediaUrl);
-                const name = getFileName(file.mediaUrl);
+                const mediaSrc = file.mediaUrl.startsWith('/') ? `${backendUrl}${file.mediaUrl}` : file.mediaUrl;
+                const img = isImage(mediaSrc);
+                const name = getFileName(mediaSrc);
                 const senderName = file.senderId?.displayName || 'Unknown';
 
                 return (
                   <div key={file._id} className="group bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all hover:-translate-y-1">
                     <div className="aspect-square bg-slate-50 flex items-center justify-center relative overflow-hidden">
                       {img ? (
-                        <img src={file.mediaUrl} alt={name} className="w-full h-full object-cover" />
+                        <img src={mediaSrc} alt={name} className="w-full h-full object-cover" />
                       ) : (
                         <FileText className="w-12 h-12 text-slate-300" />
                       )}
                       
                       {/* Overlay on hover */}
                       <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                        <a href={file.mediaUrl} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 hover:scale-110 transition-transform shadow-lg">
+                        <a href={mediaSrc} target="_blank" rel="noopener noreferrer" className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 hover:scale-110 transition-transform shadow-lg">
                           <Download className="w-5 h-5" />
                         </a>
                       </div>
