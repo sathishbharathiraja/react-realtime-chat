@@ -169,7 +169,7 @@ function MainLayout({ user, token, socket, isConnected }) {
             <Route path="/teams" element={<TeamsView conversations={conversations} socket={socket} token={token} onConversationUpdated={fetchConversations} />} />
             <Route path="/activity" element={<ActivityView token={token} />} />
             <Route path="/calendar" element={<CalendarView token={token} />} />
-            <Route path="/calls" element={<CallsView conversations={conversations} socket={socket} />} />
+            <Route path="/calls" element={<CallsView conversations={conversations} socket={socket} token={token} />} />
             <Route path="/files" element={<FilesView token={token} />} />
             <Route path="/settings" element={<SettingsView user={user} onLogout={handleLogout} token={token} />} />
             <Route path="*" element={<Navigate to="/chat" replace />} />

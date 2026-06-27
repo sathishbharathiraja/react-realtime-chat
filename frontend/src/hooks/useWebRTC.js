@@ -123,6 +123,9 @@ export function useWebRTC(socket, user) {
   };
 
   const rejectCall = () => {
+    if (incomingCall && socket) {
+      socket.emit('endCall', { conversationId: incomingCall.conversationId, missed: true });
+    }
     setIncomingCall(null);
     setCallState('idle');
   };
@@ -138,6 +141,11 @@ export function useWebRTC(socket, user) {
     Object.keys(peersRef.current).forEach(socketId => {
       removePeer(socketId);
     });
+    
+    if (activeConversationId && callState === 'connected') {
+      socket.emit('endCall', { conversationId: activeConversationId, missed: false });
+    }
+    
     peersRef.current = {};
     
     if (localStreamRef.current) {

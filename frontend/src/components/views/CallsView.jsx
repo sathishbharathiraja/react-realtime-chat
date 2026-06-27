@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Headphones, Users, Video, Phone, Plus } from 'lucide-react';
+import { Headphones, Users, Video, Phone, Plus, Clock, PhoneMissed, PhoneIncoming, PhoneOutgoing, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export default function CallsView({ conversations, socket }) {
+const backendUrl = import.meta.env.DEV ? 'http://localhost:3001' : '';
+
+export default function CallsView({ conversations, socket, token }) {
   const [huddles, setHuddles] = useState({});
+  const [callHistory, setCallHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,6 +24,22 @@ export default function CallsView({ conversations, socket }) {
       socket.off('huddlesList', handleHuddles);
     };
   }, [socket]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${backendUrl}/api/calls`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        setCallHistory(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [token]);
 
   const joinHuddle = (convId) => {
     socket.emit('joinHuddle', { conversationId: convId });
@@ -121,6 +141,81 @@ export default function CallsView({ conversations, socket }) {
                 </div>
               );
             })}
+          </div>
+
+          <h3 className="text-lg font-bold text-slate-700 mb-4 mt-8 flex items-center gap-2 border-t border-slate-100 pt-8">
+            <Clock className="w-5 h-5 text-indigo-500" /> Recent History
+          </h3>
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-8">
+            {loading ? (
+              <div className="p-8 text-center text-slate-400">Loading history...</div>
+            ) : callHistory.length === 0 ? (
+              <div className="p-8 text-center text-slate-400">No recent calls.</div>
+            ) : (
+              <div className="divide-y divide-slate-50">
+                {callHistory.map(call => {
+                  const isMissed = call.status === 'missed';
+                  const isCaller = call.caller?._id === socket?.user?._id;
+                  
+                  // For 1-on-1, determine the other participant's name
+                  let title = call.conversationId?.name;
+                  if (!call.conversationId?.isGroup && call.conversationId?.participants) {
+                    const otherUser = call.conversationId.participants.find(p => p._id !== socket?.user?._id) || call.caller;
+                    title = otherUser?.displayName || 'User';
+                  }
+
+                  const startDate = new Date(call.startTime);
+                  const duration = call.endTime ? Math.round((new Date(call.endTime) - startDate) / 1000) : null;
+                  const minutes = duration ? Math.floor(duration / 60) : 0;
+                  const seconds = duration ? duration % 60 : 0;
+
+                  return (
+                    <div key={call._id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isMissed ? 'bg-red-50 text-red-500' : 'bg-slate-100 text-slate-500'}`}>
+                          {isMissed ? <PhoneMissed className="w-5 h-5" /> : isCaller ? <PhoneOutgoing className="w-5 h-5" /> : <PhoneIncoming className="w-5 h-5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className={`font-bold truncate text-base ${isMissed ? 'text-red-600' : 'text-slate-800'}`}>
+                            {title || 'Unknown Call'}
+                          </h4>
+                          <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                            <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> {startDate.toLocaleDateString([], { month: 'short', day: 'numeric' })} at {startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {call.status === 'completed' && duration !== null && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                <span>{minutes > 0 ? `${minutes}m ` : ''}{seconds}s</span>
+                              </>
+                            )}
+                            {call.status === 'ongoing' && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                <span className="text-green-500 font-semibold">Ongoing</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={() => {
+                          if (call.conversationId?.isGroup) {
+                            joinHuddle(call.conversationId._id);
+                          } else {
+                            // Focus chat to easily call back
+                            navigate(`/chat/${call.conversationId._id}`);
+                          }
+                        }}
+                        className="w-10 h-10 rounded-full flex items-center justify-center text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors shrink-0 border border-slate-100"
+                        title="Call Back"
+                      >
+                        {call.type === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

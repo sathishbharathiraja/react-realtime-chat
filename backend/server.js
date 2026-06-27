@@ -16,7 +16,7 @@ const Conversation = require('./models/Conversation');
 const Message = require('./models/Message');
 const Activity = require('./models/Activity');
 const Task = require('./models/Task');
-
+const Call = require('./models/Call');
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -111,6 +111,26 @@ app.get('/api/users/search', verifyToken, async (req, res) => {
 app.get('/api/users/all', verifyToken, async (req, res) => {
   const users = await User.find({ _id: { $ne: req.user._id } });
   res.json(users);
+});
+
+// Call History
+app.get('/api/calls', verifyToken, async (req, res) => {
+  try {
+    // Find calls for conversations the user is a participant of
+    const userConvs = await Conversation.find({ participants: req.user._id }).select('_id');
+    const convIds = userConvs.map(c => c._id);
+    
+    const calls = await Call.find({ conversationId: { $in: convIds } })
+      .populate('caller', 'displayName avatarUrl email')
+      .populate('conversationId', 'name isGroup avatarUrl participants')
+      .sort({ startTime: -1 })
+      .limit(50);
+      
+    res.json(calls);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error fetching calls' });
+  }
 });
 
 // Create/Get Conversation
@@ -535,8 +555,20 @@ io.on('connection', async (socket) => {
     socket.emit('huddlesList', huddles);
   });
 
-  socket.on('joinHuddle', ({ conversationId }) => {
-    if (!huddles[conversationId]) huddles[conversationId] = [];
+  socket.on('joinHuddle', async ({ conversationId }) => {
+    if (!huddles[conversationId]) {
+      huddles[conversationId] = [];
+      try {
+        await Call.create({
+          conversationId,
+          caller: socket.user._id,
+          type: 'audio',
+          status: 'ongoing'
+        });
+      } catch (err) {
+        console.error('Error creating huddle call:', err);
+      }
+    }
     
     const newUser = {
       _id: socket.user._id,
@@ -555,10 +587,19 @@ io.on('connection', async (socket) => {
     socket.emit('huddlePeers', existingPeers);
   });
 
-  socket.on('leaveHuddle', ({ conversationId }) => {
+  socket.on('leaveHuddle', async ({ conversationId }) => {
     if (huddles[conversationId]) {
       huddles[conversationId] = huddles[conversationId].filter(u => u.socketId !== socket.id);
-      if (huddles[conversationId].length === 0) delete huddles[conversationId];
+      if (huddles[conversationId].length === 0) {
+        delete huddles[conversationId];
+        try {
+          await Call.findOneAndUpdate(
+            { conversationId, status: 'ongoing' },
+            { status: 'completed', endTime: new Date() },
+            { sort: { startTime: -1 } }
+          );
+        } catch (err) {}
+      }
       io.emit('huddlesList', huddles);
     }
     socket.leave(`huddle_${conversationId}`);
@@ -572,7 +613,15 @@ io.on('connection', async (socket) => {
     socket.to(conversationId).emit('groupRinging', { conversationId, callerName });
   });
 
-  socket.on('callUser', ({ userToCall, signalData, from, name, conversationId }) => {
+  socket.on('callUser', async ({ userToCall, signalData, from, name, conversationId }) => {
+    try {
+      await Call.create({
+        conversationId,
+        caller: socket.user._id,
+        type: 'video',
+        status: 'ongoing'
+      });
+    } catch (err) {}
     // userToCall is the target's socket.id. Send specifically to them.
     io.to(userToCall).emit('incomingCall', { 
       signal: signalData, 
@@ -592,6 +641,16 @@ io.on('connection', async (socket) => {
     io.to(to).emit('iceCandidate', { candidate, from: socket.id });
   });
 
+  socket.on('endCall', async ({ conversationId, missed }) => {
+    try {
+      await Call.findOneAndUpdate(
+        { conversationId, status: 'ongoing' },
+        { status: missed ? 'missed' : 'completed', endTime: new Date() },
+        { sort: { startTime: -1 } }
+      );
+    } catch (err) {}
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${socket.id}`);
     // Clean up any huddles this user was in
@@ -599,7 +658,16 @@ io.on('connection', async (socket) => {
       const wasInHuddle = huddles[conversationId].some(u => u.socketId === socket.id);
       if (wasInHuddle) {
         huddles[conversationId] = huddles[conversationId].filter(u => u.socketId !== socket.id);
-        if (huddles[conversationId].length === 0) delete huddles[conversationId];
+        if (huddles[conversationId].length === 0) {
+          delete huddles[conversationId];
+          try {
+            Call.findOneAndUpdate(
+              { conversationId, status: 'ongoing' },
+              { status: 'completed', endTime: new Date() },
+              { sort: { startTime: -1 } }
+            ).exec();
+          } catch (err) {}
+        }
         io.emit('huddlesList', huddles);
         socket.to(`huddle_${conversationId}`).emit('userLeftHuddle', { socketId: socket.id });
       }
